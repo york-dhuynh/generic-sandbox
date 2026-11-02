@@ -1,0 +1,23 @@
+{
+ "session": "S1-bank-20261028-1544",
+ "kind": "block",
+ "created": "2026-10-28T15:44:10",
+ "scenarios": [
+  "S1"
+ ],
+ "items": [
+  "F0019",
+  "F0006",
+  "F0021",
+  "F0012",
+  "F0020",
+  "F0007",
+  "F0022",
+  "F0014",
+  "F0023",
+  "F0017"
+ ],
+ "answers": {},
+ "graded": null,
+ "format": "browser"
+}

@@ -1,0 +1,122 @@
+{
+ "code_claude_com_docs_en_agent_sdk_agent_loop": {
+  "url": "https://code.claude.com/docs/en/agent-sdk/agent-loop",
+  "fetched": "2026-10-28",
+  "chars": 41255
+ },
+ "code_claude_com_docs_en_agent_sdk_hooks": {
+  "url": "https://code.claude.com/docs/en/agent-sdk/hooks",
+  "fetched": "2026-10-28",
+  "chars": 46054
+ },
+ "code_claude_com_docs_en_agent_sdk_permissions": {
+  "url": "https://code.claude.com/docs/en/agent-sdk/permissions",
+  "fetched": "2026-10-28",
+  "chars": 33155
+ },
+ "code_claude_com_docs_en_agent_sdk_subagents": {
+  "url": "https://code.claude.com/docs/en/agent-sdk/subagents",
+  "fetched": "2026-10-28",
+  "chars": 42519
+ },
+ "code_claude_com_docs_en_hooks": {
+  "url": "https://code.claude.com/docs/en/hooks",
+  "fetched": "2026-10-28",
+  "chars": 282369
+ },
+ "code_claude_com_docs_en_hooks_guide": {
+  "url": "https://code.claude.com/docs/en/hooks-guide",
+  "fetched": "2026-10-28",
+  "chars": 66088
+ },
+ "code_claude_com_docs_en_sub_agents": {
+  "url": "https://code.claude.com/docs/en/sub-agents",
+  "fetched": "2026-10-28",
+  "chars": 116045
+ },
+ "modelcontextprotocol_io_specification_2026_07_28_server_tools": {
+  "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools",
+  "fetched": "2026-10-28",
+  "chars": 24854
+ },
+ "platform_claude_com_docs_en_about_claude_use_case_guides_customer_support_chat": {
+  "url": "https://platform.claude.com/docs/en/about-claude/use-case-guides/customer-support-chat",
+  "fetched": "2026-10-28",
+  "chars": 54878
+ },
+ "platform_claude_com_docs_en_agents_and_tools_tool_use_build_a_tool_using_agent": {
+  "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/build-a-tool-using-agent",
+  "fetched": "2026-10-28",
+  "chars": 138615
+ },
+ "platform_claude_com_docs_en_agents_and_tools_tool_use_define_tools": {
+  "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools",
+  "fetched": "2026-10-28",
+  "chars": 38558
+ },
+ "platform_claude_com_docs_en_agents_and_tools_tool_use_handle_tool_calls": {
+  "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+  "fetched": "2026-10-28",
+  "chars": 13427
+ },
+ "platform_claude_com_docs_en_agents_and_tools_tool_use_how_tool_use_works": {
+  "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works",
+  "fetched": "2026-10-28",
+  "chars": 11336
+ },
+ "platform_claude_com_docs_en_agents_and_tools_tool_use_manage_tool_context": {
+  "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/manage-tool-context",
+  "fetched": "2026-10-28",
+  "chars": 5509
+ },
+ "platform_claude_com_docs_en_agents_and_tools_tool_use_tool_search_tool": {
+  "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool",
+  "fetched": "2026-10-28",
+  "chars": 37360
+ },
+ "platform_claude_com_docs_en_build_with_claude_compaction": {
+  "url": "https://platform.claude.com/docs/en/build-with-claude/compaction",
+  "fetched": "2026-10-28",
+  "chars": 12237
+ },
+ "platform_claude_com_docs_en_build_with_claude_context_editing": {
+  "url": "https://platform.claude.com/docs/en/build-with-claude/context-editing",
+  "fetched": "2026-10-28",
+  "chars": 103379
+ },
+ "platform_claude_com_docs_en_build_with_claude_context_windows": {
+  "url": "https://platform.claude.com/docs/en/build-with-claude/context-windows",
+  "fetched": "2026-10-28",
+  "chars": 16191
+ },
+ "platform_claude_com_docs_en_build_with_claude_handling_stop_reasons": {
+  "url": "https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons",
+  "fetched": "2026-10-28",
+  "chars": 120649
+ },
+ "platform_claude_com_docs_en_build_with_claude_prompt_engineering_claude_prompting_best_practices": {
+  "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices",
+  "fetched": "2026-10-28",
+  "chars": 74559
+ },
+ "platform_claude_com_docs_en_test_and_evaluate_strengthen_guardrails_increase_consistency": {
+  "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/increase-consistency",
+  "fetched": "2026-10-28",
+  "chars": 13947
+ },
+ "www_anthropic_com_engineering_effective_context_engineering_for_ai_agents": {
+  "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+  "fetched": "2026-10-28",
+  "chars": 21802
+ },
+ "www_anthropic_com_engineering_multi_agent_research_system": {
+  "url": "https://www.anthropic.com/engineering/multi-agent-research-system",
+  "fetched": "2026-10-28",
+  "chars": 26714
+ },
+ "www_anthropic_com_engineering_writing_tools_for_agents": {
+  "url": "https://www.anthropic.com/engineering/writing-tools-for-agents",
+  "fetched": "2026-10-28",
+  "chars": 22291
+ }
+}

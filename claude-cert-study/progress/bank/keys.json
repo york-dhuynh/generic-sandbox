@@ -1,0 +1,1280 @@
+{
+ "F0002": {
+  "key": [
+   "A"
+  ],
+  "rule": "If tool descriptions are already clear but misrouting follows one word, look for a system-prompt instruction that ties that word to a tool. Fix that instruction. Don't pile more mechanisms on top of it.",
+  "why": {
+   "A": "The descriptions already state the boundaries, and misrouting follows the keyword, not the intent: the 'where's my money' wording routes correctly. That points to the system-prompt line binding the word 'refund' to `process_refund` and overriding good descriptions. Rewriting that line around intent removes the root cause with the least machinery.",
+   "B": "Few-shot examples are a real lever for selection, but here they would compete with an instruction that still says to use `process_refund` whenever a refund is mentioned. The prompt would contradict itself, and misrouting would likely continue at some rate, because the conflicting association is still there.",
+   "C": "This treats a selection problem as an enforcement problem. The backend already rejects these duplicate calls, so the hook only adds an earlier rejection plus a pointer to the right tool. The agent still picks the wrong tool first, and the instruction that causes it is unchanged.",
+   "D": "Merging tools moves the choice into the `action` parameter. The system-prompt instruction tying 'refund' to issuing refunds still applies, so the agent would pick the refund action instead. The merge also bundles a read-only lookup with a money-moving write behind one interface. The guide's fix for overlap is to rename, rewrite, or split tools, not merge them."
+  },
+  "evidence": [
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "System-prompt keywords can create unintended tool associations that override good descriptions."
+   },
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Descriptions are the primary selection signal. Minimal or overlapping descriptions cause misrouting."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Fix overlap by renaming and rewriting (e.g., `analyze_content` → `extract_web_results`), or split generic tools into purpose-specific ones with defined contracts."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Hooks = deterministic guarantees; prompts = probabilistic compliance. Choose hooks when rules must hold."
+   }
+  ],
+  "question_type": "root cause",
+  "hardness_note": "This is not the official sample's setup. There, minimal descriptions made expanding them the right first step. Here the descriptions are already done, so the expected answer is ruled out and the candidate has to find a different cause. The decisive evidence is that the misrouting follows the word (\"refund\" misroutes, \"my money\" routes correctly) and that the system prompt has a matching keyword instruction. Without that detail, few-shot (B) would be defensible. The note that the backend already rejects duplicates and no money moves defuses the 'deterministic beats probabilistic' pull toward the hook (C). Consolidation (D) is tempting because the define-tools docs recommend grouping related operations, but it doesn't touch the instruction causing the problem. The options are similar in length, and the word 'system prompt' appears in both A and B, so neither wording nor length gives the key away."
+ },
+ "F0001": {
+  "key": [
+   "B"
+  ],
+  "rule": "In hub-and-spoke orchestration, the coordinator owns all communication between agents and all error handling. If agents hand off to each other directly, the coordinator can't see failures or act on them.",
+  "why": {
+   "A": "This treats the symptom downstream. The returns agent duplicates the billing agent's work, the handoff still skips the coordinator, and the coordinator still closes tickets without knowing about the failure.",
+   "B": "The failures started right after the direct queue handoff went in. The traces show the coordinator never saw the timeout, so it couldn't retry, re-delegate, or escalate, and it closed the ticket. Restoring hub-and-spoke routing gives the coordinator back control over each result and error and over what runs next.",
+   "C": "Structured error context is the right format, but this sends it to the wrong place. Only the returns agent sees the timeout, so the coordinator, which owns error handling and ticket resolution, still marks tickets resolved without that information.",
+   "D": "This is a detective control. The coordinator's log would record the timeout, but only after the refund is issued. The coordinator still makes no decision on the failure, so incorrect refunds and premature closures continue."
+  },
+  "evidence": [
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Hub-and-spoke: coordinator owns all inter-subagent communication, error handling, routing (observability, consistency)."
+   },
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "code_claude_com_docs_en_sub_agents",
+    "quote": "Each subagent completes its task and returns results to Claude, which then passes relevant context to the next subagent."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Subagents recover locally from transient failures and propagate only unresolved errors, with partial results and what was attempted."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "www_anthropic_com_engineering_multi_agent_research_system",
+    "quote": "Adding full production tracing let us diagnose why agents failed and fix issues systematically."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "www_anthropic_com_engineering_multi_agent_research_system",
+    "quote": "Without detailed task descriptions, agents duplicate work, leave gaps, or fail to find necessary information."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "C is the strongest distractor because structured error context is a principle the exam rewards (tasks 2.2 and 5.3). The deciding detail is that the coordinator marks the ticket resolved with nothing in its traces. That shows the error must reach the coordinator, not a peer agent. D tempts candidates who read 'no record in traces' as a logging gap, but logging after the fact changes no decision. A sounds like local recovery but fixes the wrong layer. The candidate has to combine two facts: the timing (the failures began with the direct handoff) and what the coordinator owns (error handling and resolution), which settles where the fix belongs."
+ },
+ "F0003": {
+  "key": [
+   "D"
+  ],
+  "rule": "When the agent has the right instructions but applies them inconsistently on borderline cases, add a few targeted examples of exactly those cases that show why one action beats the alternatives. Don't add more examples, reposition the text, or force escalation.",
+  "why": {
+   "A": "This adds volume instead of targeting. A random sample of resolved tickets is mostly clear-cut cases, which the agent already handles 96% of the time, so the two borderline patterns stay underrepresented. The extra examples could also reinforce the existing bias toward obvious cases.",
+   "B": "This uses a hook for a requirement that isn't a hard rule. These cases are covered by policy and all fall under the existing $500 limit, and the policy team wants most of them resolved autonomously. Forcing every one of them to a human would make the agent consistent but would hurt first-contact resolution. A hook also can't reliably judge whether a customer's account conflicts with the order record.",
+   "C": "This fixes a retrieval problem the transcripts rule out. The agent quotes the correct clause, so it is already finding the policy text. The failure is in how it applies the clause, and moving or relabeling the text doesn't teach it how to apply it.",
+   "D": "The policy is present and the agent is reading it, but the existing examples only show easy cases, so it has no model for the borderline judgment. A few targeted examples of these two patterns, each explaining why one action beats the plausible alternatives, generalize that judgment. Replacing existing examples rather than piling more on keeps the example set small. Drift note: the guide says 2–4 examples and current docs say 3–5. Three fits both, so the count doesn't decide the item."
+  },
+  "evidence": [
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "2–4 targeted examples of ambiguous cases, showing why one action beats plausible alternatives."
+   },
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Most effective fix when instructions alone give inconsistent format or quality."
+   },
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "drift-table",
+    "quote": "Don't let the count decide an item. 3 satisfies both"
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_build_with_claude_prompt_engineering_claude_prompting_best_practices",
+    "quote": "Cover edge cases and vary enough that Claude doesn’t pick up unintended patterns."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "2–3 concrete input/output examples beat prose when prose is read inconsistently."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Triggers: customer asks for a human (honor immediately), policy exception/gap (policy silent on the case), no meaningful progress."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The deciding detail sits mid-stem: the agent quotes the correct clause and then applies it inconsistently. That rules out C, the lost-in-the-middle fix, and any \"rewrite the policy\" approach. The existing $500 hook and the under-$150 amounts are there to pull \"hooks beat prompts\" slogan-followers toward B. The policy team's goal of autonomous resolution and the 80% first-contact-resolution target show that B trades one problem for another. A appeals to anyone who thinks more examples are always better. Only D targets the borderline cases and the reasoning behind the choice, and it keeps the example set small."
+ },
+ "F0005": {
+  "key": [
+   "C"
+  ],
+  "rule": "If summarization drops exact figures, take the transactional facts out of the summarized history and carry them in a persistent case-facts block. Don't try to make the summary lossless.",
+  "why": {
+   "A": "This fixes lost-in-the-middle, where information is present but buried. The reviewers' comparison shows the figures are gone from the summary itself, so moving the summary or adding headers can't bring them back.",
+   "B": "Trimming tool output is a real 5.1 practice, but the 45-field lookup_order result is a red herring. The lost facts come from what the customer said, and 40+ turn sessions still get summarized after trimming. Slower growth only delays the same loss.",
+   "C": "Correct. The failures start right after summarization, and the transcript comparison shows lossy compression of numbers, dates, and customer expectations. Keeping those facts in a persistent block outside the summarized history means every request gets them exactly, whatever the summarizer drops.",
+   "D": "This is the slogan trap ('few-shot fixes inconsistent output'). A prompt-level fix to the summarizer was already tried and moved the error rate only one point. Summarization is still probabilistic, lossy compression, so better examples only shrink the error rate rather than guarantee exact amounts and dates."
+  },
+  "evidence": [
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Progressive summarization loses numbers, dates, customer expectations. Keep a persistent \"case facts\" block outside summarized history."
+   },
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "www_anthropic_com_engineering_effective_context_engineering_for_ai_agents",
+    "quote": "Structured note-taking, or agentic memory, is a technique where the agent regularly writes notes persisted to memory outside of the context window."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "www_anthropic_com_engineering_effective_context_engineering_for_ai_agents",
+    "quote": "overly aggressive compaction can result in the loss of subtle but critical context whose importance only becomes apparent later."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_build_with_claude_context_editing",
+    "quote": "Tasks requiring precise recall of early conversation details"
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Lost-in-the-middle: put key findings first and use explicit section headers."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Trim verbose tool output to relevant fields (40+ fields → 5) before it accumulates."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "Every option is a real 5.1 or 4.2 technique. Two details in the middle of the stem decide it. First, the before/after summary example shows the facts are deleted, not buried, which rules out A. Second, the failed 'retain all key figures' prompt revision shows that summarizer-side prompting doesn't fix the loss, which rules out D for anyone leaning on the few-shot slogan. The 45-field lookup_order detail is a red herring meant to pull candidates who know 'trim tool output' toward B. C is not the longest option and doesn't echo stem wording that the distractors lack."
+ },
+ "F0004": {
+  "key": [
+   "A"
+  ],
+  "rule": "If misrouting starts right after a system-prompt change and follows a keyword rather than the request type, the cause is the prompt's keyword association. Fix the prompt wording. Don't keep piling text onto descriptions that already work.",
+  "why": {
+   "A": "The regression started when the system-prompt section was added. The descriptions didn't change and had held 97% accuracy. Misroutes follow the word \"account\", not the request type, because identical requests without that word route correctly. So the new section's broad wording has created a keyword association that overrides good descriptions. Scoping it to concrete takeover signals removes the cause.",
+   "B": "This is the \"fix the descriptions first\" slogan. The descriptions were already detailed, met the 3–4 sentence guidance, and routed at 97% before the prompt change. Adding more description text leaves the conflicting system-prompt instruction in place, and that instruction is what overrides the descriptions.",
+   "C": "Few-shot examples are a probabilistic patch stacked on top of a contradiction. The system prompt would still tell the agent to escalate account matters while the examples say not to. The root cause stays in place, and the conflict will keep surfacing with new phrasings.",
+   "D": "This is the \"hooks beat prompts\" slogan used at the wrong layer. Routing on keywords in code is brittle. It would also block legitimate escalations, such as a customer asking for a human, which must be honored right away. The faulty instruction would still be in the prompt."
+  },
+  "evidence": [
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "System-prompt keywords can create unintended tool associations that override good descriptions."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_define_tools",
+    "quote": "Aim for at least 3–4 sentences for each tool description, more if the tool is complex."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Triggers: customer asks for a human (honor immediately), policy exception/gap (policy silent on the case), no meaningful progress."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Prompts alone have a non-zero failure rate, so deterministic compliance needs code (e.g., identity verification before financial operations)."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "Two things decide it, and both sit mid-stem. First, the descriptions didn't change and held 97% accuracy until the system-prompt section was added. Second, misroutes track the word \"account\": the same requests worded without it route correctly. The teammate's point that `escalate_to_human` has the shortest description is a red herring. It pulls toward B, the \"fix the descriptions first\" answer. D appeals to candidates who default to hooks, and C appeals to those who reach for few-shot first. The candidate has to combine \"what changed\" (the system prompt) with the keyword correlation to land on task 2.1's point about system-prompt keywords overriding descriptions. The C evidence quote is weaker than the others. It shows that prompt guidance is never fully reliable, which supports the claim that C leaves the conflict in place. It doesn't directly say that few-shot examples fail against a contradicting instruction."
+ },
+ "F0008": {
+  "key": [
+   "B"
+  ],
+  "rule": "When subagents start calling each other directly, the coordinator stops seeing what happens. Bring routing and results back through the coordinator so it can see every outcome and keep the customer reply consistent.",
+  "why": {
+   "A": "A dedupe hook would stop the duplicate store credit. It does nothing about the second problem: the coordinator never receives the refund result, so it still tells the customer a failed refund is complete.",
+   "B": "Both problems have the same cause. The new subagent-to-subagent path took the refund decision and its result away from the coordinator. If the refund call goes back through the coordinator, it knows a refund is in progress before it offers a credit, and it gets the non-retryable error so it can tell the customer accurately or escalate.",
+   "C": "Merging the refund tool into the investigation subagent still leaves a refund decision outside the coordinator. That decision runs at the same time as the coordinator's work on the billing concern, so the double-resolution conflict stays. The change also hands a financial tool to a role that only needs to investigate.",
+   "D": "Passing context happens once, when the subagent is spawned. A copy of the history made at that point can't show a credit or refund that happens afterward. It also doesn't send the refund outcome back to the coordinator, so the false success message remains."
+  },
+  "evidence": [
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Hub-and-spoke: coordinator owns all inter-subagent communication, error handling, routing (observability, consistency)."
+   },
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Subagents recover locally from transient failures and propagate only unresolved errors, with partial results and what was attempted."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "code_claude_com_docs_en_agent_sdk_subagents",
+    "quote": "The only content you pass from parent to subagent is the Agent tool's prompt string, so include any file paths, error messages, or decisions the subagent needs directly in that prompt."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Tools outside an agent's role get misused."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "www_anthropic_com_engineering_multi_agent_research_system",
+    "quote": "But this asynchronicity adds challenges in result coordination, state consistency, and error propagation across the subagents."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The stem gives two symptoms, and only B fixes both. Each distractor matches a common slogan. A fits \"hooks beat prompts\" and deterministically fixes the duplicate credit, but the coordinator still gets no result from the failed refund. C fits \"structured errors enable recovery\": the investigation subagent could see the error, but a refund decision still runs outside the coordinator alongside its billing work. D fits \"pass context explicitly\" but sends a one-time copy of the history at spawn. Red herrings: the 18% latency gain makes a candidate want to keep the shortcut, and the note that identity verification was clean steers away from the familiar get_customer gate. Two details decide the item. The error is already structured and non-retryable, and the coordinator received no refund result. Together they show the problem is where results go, not how errors are formatted."
+ },
+ "F0007": {
+  "key": [
+   "B"
+  ],
+  "rule": "When the model reasons badly over a tool's raw data format, normalize that result in a PostToolUse hook before the model sees it. A gate on a downstream action only catches errors that reach that action.",
+  "why": {
+   "A": "A tool description is text the model reads and may or may not apply. It gives probabilistic compliance, which breaks leadership's requirement that the fix not depend on the model following instructions. The guide's advice to fix descriptions first is about tool selection, not about converting data formats.",
+   "B": "The root cause is that the model is handed epoch seconds from one backend and misreads them. A PostToolUse hook that rewrites those fields to ISO 8601 runs in code on every legacy result before the model sees it. That fixes wrong approvals, wrong denials, and wrong deadlines at the source, and it sends no extra cases to humans.",
+   "C": "This applies the slogan that a deterministic gate beats a prompt, and it copies the trusted $500 hook. But a PreToolUse hook fires only when the tool is called. In about 80% of the errors the agent wrongly denied or misquoted and never called `process_refund`, so this gate cannot see most of the failures. Finance's $41,000 figure is the red herring.",
+   "D": "The legacy dates are valid data, so marking them as errors is wrong. The validation category is for bad input. Asking customers to confirm dates moves the work onto them, slows resolution on 35% of orders, and still leaves the model to read epoch values it misinterprets."
+  },
+  "evidence": [
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "`PostToolUse` hooks transform tool results before the model sees them (normalize Unix vs ISO 8601 timestamps, numeric status codes)."
+   },
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "code_claude_com_docs_en_agent_sdk_hooks",
+    "quote": "To replace the tool's output before Claude sees it, set `updatedToolOutput`, which works for any tool in both SDKs."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "code_claude_com_docs_en_hooks",
+    "quote": "For redaction or transformation use cases, intercept at `PreToolUse` for outbound tool inputs and `PostToolUse` for inbound tool results."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "code_claude_com_docs_en_hooks",
+    "quote": "PreToolUse runs only when Claude calls a tool."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Hooks = deterministic guarantees; prompts = probabilistic compliance. Choose hooks when rules must hold."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Categories: transient (timeouts, unavailable), validation (bad input), business (policy violation), permission."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "Three options are now code-level mechanisms, and two of them are hooks, so 'pick the hook' no longer gives away the answer. A follows the 'fix descriptions first' slogan, D follows the 'structured errors with isError' slogan, and C follows the 'deterministic gate' slogan by extending the trusted $500 refund hook. Without the stem, B and C are hard to tell apart. The decisive detail sits mid-stem: about 80% of the errors are wrong denials or deadlines that never call process_refund. Finance's $41,000 over-refund figure is a red herring that draws candidates toward the refund gate. The FCR/no-escalation constraint rules out D, and the 'not dependent on instructions' constraint rules out A."
+ },
+ "F0006": {
+  "key": [
+   "B"
+  ],
+  "rule": "If the agent understands the instruction but applies it inconsistently on ambiguous cases, add a few targeted examples of those cases that show why one action beats the alternative. Don't add more prose, a hook, or a pile of generic examples.",
+  "why": {
+   "A": "The replays show the agent already quotes the correct clause, so it understands the prose. The problem is inconsistent application, and more qualifiers in prose leave that judgment gap open.",
+   "B": "Correct. The instructions are understood but applied inconsistently in judgment cases. That is where few-shot is the most effective fix: a few targeted examples of exactly these ambiguous situations, each showing why one action beats the plausible alternative, teach the judgment to generalize. Three examples fits both the guide's 2–4 and current docs' 3–5, so the drift in example count doesn't affect the key.",
+   "C": "This follows the 'hooks beat prompts' slogan, but the policy grants discretion instead of defining a rule that must hold. The amounts are small and within the existing hook limit, so a fixed rule would replace intended judgment rather than enforce a requirement.",
+   "D": "A random sample of historical tickets is mostly routine requests, so it barely covers the three ambiguous situations and shows no reasoning about alternatives. Volume does not replace targeting."
+  },
+  "evidence": [
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Most effective fix when instructions alone give inconsistent format or quality."
+   },
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "2–4 targeted examples of ambiguous cases, showing why one action beats plausible alternatives."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "2–3 concrete input/output examples beat prose when prose is read inconsistently."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Hooks = deterministic guarantees; prompts = probabilistic compliance. Choose hooks when rules must hold."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_build_with_claude_prompt_engineering_claude_prompting_best_practices",
+    "quote": "Cover edge cases and vary enough that Claude doesn’t pick up unintended patterns."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The decisive detail sits mid-stem: the agent quotes the correct clause on every replay but decides differently. That rules out more prose (A). The $500 hook mention is a red herring that pulls slogan-followers toward C, but the policy is discretionary and the amounts are under the limit. D appeals to 'more examples is better' and fails because random sampling misses the ambiguous cases. B says 'three' examples, which fits both the guide's 2–4 and the docs' 3–5, so the drift in example count cannot decide the item."
+ },
+ "F0010": {
+  "key": [
+   "C"
+  ],
+  "rule": "If an identity lookup returns more than one match, ask the customer for another identifier. Don't guess from context, and don't escalate a case the agent can resolve.",
+  "why": {
+   "C": "The root cause is that the agent picks one account when the lookup is ambiguous. The hook can't catch this because an ID does get returned. Asking for another identifier removes the ambiguity, and the agent can still resolve the case itself, so first-contact resolution is protected.",
+   "A": "This is the failing behavior. The stem says the agent already chooses the account whose orders best fit the customer's story. Few-shot examples would train it to keep guessing from context instead of verifying identity.",
+   "B": "This follows the slogan that deterministic beats probabilistic, but it applies it to the wrong action. Multiple matches can be resolved with one question and are not an escalation trigger. Sending about 11% of conversations to humans would push first-contact resolution further below 80%, when it is already at 76%.",
+   "D": "Self-reported confidence is poorly calibrated in exactly the cases where the agent is wrong. The agent that picked the wrong account was probably confident, so a threshold would let most of these refunds through."
+  },
+  "evidence": [
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Multiple customer matches → ask for more identifiers, never guess."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Multiple customer matches → ask for more identifiers, never guess."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Triggers: customer asks for a human (honor immediately), policy exception/gap (policy silent on the case), no meaningful progress."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Target 80%+ first-contact resolution while knowing when to escalate."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Not reliable proxies: sentiment, self-reported confidence."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The stem starts after the obvious first fix: the identity gate from F-Q1 is already in place, so this is a second-step item. It also includes a red herring, \"the hook let the refunds through\", which pulls slogan-driven candidates toward B, a deterministic hook fix that sounds right because refunds carry financial risk. Two facts in the middle of the stem decide the item. First, 11% multi-match volume combined with 76% first-contact resolution rules out mass escalation. Second, the agent already picks the account whose orders fit best, which rules out the plausible-sounding inference approach in A. D sounds like a calibration mechanism but uses self-reported confidence. Only C removes the ambiguity, keeps the case with the agent, and follows the guide's rule to ask rather than guess. The drift table has no relevant rows."
+ },
+ "F0009": {
+  "key": [
+   "D"
+  ],
+  "rule": "An escalation handoff must carry a structured summary (customer ID, order, root cause, amount, recommended action), because the human receiving it doesn't have the agent's context and won't read the transcript.",
+  "why": {
+   "A": "This fits the slogan that deterministic gates beat prompts, but the stem says the agent already verifies identity before every escalation. The gate guards against a failure that isn't happening. The verified ID exists in the session but never reaches the reviewer, and a gate on the agent doesn't change what the ticket contains.",
+   "B": "Reviewers already have the transcript one click away and seldom read 30–50 turns within a 4-minute target. Putting the same text in the ticket body doesn't change that. Humans need a short structured summary, not the raw history.",
+   "C": "This acts on the stem's red herring. A higher limit lowers ticket volume, but the time spent on each ticket that still escalates stays the same. It also loosens a financial control that the hook currently enforces correctly.",
+   "D": "The time goes to rebuilding context the agent already has: the verified identity, the order involved, and what went wrong. Making those fields required in the escalation tool's input means every handoff carries the structured summary a human needs to decide without contacting the shopper again."
+  },
+  "evidence": [
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Escalation handoff = structured summary (customer ID, root cause, amount, recommended action) for humans who lack the transcript."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Block `process_refund` until `get_customer` returned a verified ID."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Pre-call interception hooks block policy violations (e.g., refunds > $500) and redirect to escalation."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Hooks = deterministic guarantees; prompts = probabilistic compliance. Choose hooks when rules must hold."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "A tempts candidates who apply \"a deterministic gate beats a prompt\" by reflex. It is ruled out mid-stem: identity verification already happens in every escalated session, so the gap is getting that information to the reviewer, not enforcing it on the agent. B tempts candidates who think more context always helps, and the \"seldom open the 30–50-turn transcript\" detail rules it out. C is the product manager's red herring: it cuts volume but not time per ticket, and it weakens a working financial control. To land on D, the candidate has to combine the scenario's handoff requirement with the evidence that reviewers are rebuilding identity, order, and root cause on their own."
+ },
+ "F0013": {
+  "key": [
+   "A"
+  ],
+  "rule": "Give tool errors a category, a retryable flag, and a readable reason so the agent can retry transient failures, correct invalid input, and explain business rejections. A generic failure string hides all of these, so the agent can't recover.",
+  "why": {
+   "A": "The real problem is that the agent receives one generic string for three different kinds of failure, even though the backend already knows which kind each one is. With a category and a retryable flag, the agent can retry the 25% that are timeouts and correct the 5% over-total amounts. It can also explain the 70% policy rejections in customer-friendly terms instead of retrying them or calling them a system issue.",
+   "B": "Backoff retries every rejection, but the stem says policy rejections return the same code on every attempt, so 70% of failures just add more multi-second waits. After all that, the agent still gets the same generic text, so it keeps calling ineligible refunds a 'temporary system issue' and keeps resubmitting over-total amounts. The vendor migration and the latency detail are red herrings that pull candidates toward fixing only the timeouts.",
+   "C": "A retry cap in the prompt treats every failure the same and is only probabilistic. Policy rejections would still be escalated after a failed retry, and over-total amounts would still be resubmitted unchanged. The agent still can't tell the failure types apart.",
+   "D": "This fits the 'hooks beat prompts' slogan, but it sends the 70% clear policy rejections to humans when the agent could explain them itself. That shifts work to staff and lowers first-contact resolution. A rejection under clearly stated policy is not an escalation trigger."
+  },
+  "evidence": [
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Generic \"Operation failed\" prevents recovery. Return `errorCategory`, `isRetryable`, and a human-readable description. Business violations get `retriable: false` plus a customer-friendly explanation."
+   },
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_handle_tool_calls",
+    "quote": "Write instructive error messages. Instead of generic errors such as `\"failed\"`, include what went wrong and what Claude should try next"
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Categories: transient (timeouts, unavailable), validation (bad input), business (policy violation), permission."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "modelcontextprotocol_io_specification_2026_07_28_server_tools",
+    "quote": "Tool Execution Errors contain actionable feedback that language models can use to self-correct and retry with adjusted parameters"
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Triggers: customer asks for a human (honor immediately), policy exception/gap (policy silent on the case), no meaningful progress."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The vendor migration and the multi-second gateway latency pull candidates toward B, which matches the familiar 'recover locally from transient failures' advice. B fails because the stem says policy rejections, the largest share, return the same code on every attempt. B also returns the same generic text afterward, so none of the three bad behaviors in the transcripts changes. C and D appeal to the 'cap retries' and 'hooks beat prompts' slogans but still treat every failure the same. Only A gives the agent the category information the backend already has."
+ },
+ "F0011": {
+  "key": [
+   "C"
+  ],
+  "rule": "The loop's continue or stop decision comes from stop_reason. It continues on \"tool_use\" and stops on \"end_turn\". The presence of assistant text does not mean the turn is complete, and neither does a natural-language phrase or an iteration count.",
+  "why": {
+   "A": "This makes two of the guide's named anti-patterns the primary stop signal: an arbitrary iteration cap and parsing a natural-language completion phrase. The cap is a red herring. The stalled sessions ended after one response that requested a tool, not after 12 iterations.",
+   "B": "This treats the symptom at the wrong layer, and only probabilistically. A response can legitimately contain both text and a tool call. The real defect is that the loop treats any text as completion, so the next response that happens to include narration will stall the same way.",
+   "C": "The order service never received the call, even though the response requested lookup_order with valid arguments. So the loop exited before running the tool, most likely because it treated the narration text as a finished turn. Keying continuation on stop_reason \"tool_use\" and returning tool_result blocks fixes the root cause.",
+   "D": "A PostToolUse hook fires only after a tool runs and returns. In these sessions lookup_order never ran, so the hook would never fire. It addresses a different failure: empty lookup results."
+  },
+  "evidence": [
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_how_tool_use_works",
+    "quote": "In practice this reads as: while `stop_reason == \"tool_use\"`, run the tools and continue the conversation."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "code_claude_com_docs_en_agent_sdk_agent_loop",
+    "quote": "Claude evaluates the current state and determines how to proceed. It may respond with text, request one or more tool calls, or both."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Anti-patterns: parsing natural-language \"I'm done\" signals, arbitrary iteration caps as the *primary* stop, treating presence of assistant text as completion."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "code_claude_com_docs_en_agent_sdk_agent_loop",
+    "quote": "are callbacks that fire at specific points in the loop: before a tool runs, after it returns, when the agent finishes, and so on."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The decisive detail sits mid-stem: the order service never logged the call, even though the model requested it with valid arguments. That points to the loop exiting before execution, not to a tool or data failure. The 12-iteration cap is a red herring that pulls toward A. Candidates who rely on the slogan \"hooks beat prompts\" are drawn to D, which can't fire because the tool never ran. B looks like a cheap fix for the narration, but it hides the loop defect instead of fixing it. The key never names the bug from the stem. The candidate has to work out that text plus a tool request was treated as completion."
+ },
+ "F0012": {
+  "key": [
+   "C"
+  ],
+  "rule": "When one request must end in one specific tool call, force that tool by name with tool_choice. \"any\" still allows the wrong tool, \"auto\" still allows a text-only reply, and a PostToolUse hook never runs when no tool is called.",
+  "why": {
+   "A": "\"any\" stops the 8% text-only endings, but it lets the model pick any provided tool. The 3% that call `lookup_order` again would still happen and still produce no handoff.",
+   "B": "Removing the other tools stops the 3% repeat lookups. Under \"auto\" the model can still answer in plain text, so the 8% `end_turn` apologies continue.",
+   "C": "Correct. A forced `{\"type\":\"tool\",\"name\":\"escalate_to_human\"}` closes both failure modes in the logs: the model can't end with a text reply (8%) or choose `lookup_order` (3%). This is the guide's mechanism for a step that must call one specific tool. Drift note: current docs say Opus 5.5, Sonnet 5.5, Fable 5.1, and Mythos 5.1 reject forced tool_choice with a 400. The stem pins a model that accepts it, and the exam keys per the guide (drift row 18).",
+   "D": "This sounds like the slogan \"hooks beat prompts\" but uses the wrong mechanism. PostToolUse runs on tool results, and the 8% text-only replies call no tool, so the hook never fires. Resending is also a probabilistic retry, not a guarantee."
+  },
+  "evidence": [
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "`tool_choice`: `\"auto\"` (may answer in text), `\"any\"` (must call some tool), forced `{\"type\":\"tool\",\"name\":\"...\"}` (must call that tool, e.g., `extract_metadata` first)."
+   },
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_define_tools",
+    "quote": "`tool` forces Claude to always use a particular tool."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_define_tools",
+    "quote": "`any` tells Claude that it must use one of the provided tools, but doesn’t force a particular tool."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_define_tools",
+    "quote": "`auto` allows Claude to determine whether to call any provided tools. This is the default value when `tools` are provided."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "`PostToolUse` hooks transform tool results before the model sees them (normalize Unix vs ISO 8601 timestamps, numeric status codes)."
+   },
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "drift-table",
+    "quote": "The docs recommend `auto` + strict tool use, or structured outputs, instead. Earlier models still accept forced tool use."
+   }
+  ],
+  "question_type": "most reliable",
+  "hardness_note": "Each option is now framed as a best practice. A cites the guide's \"any\" (must call a tool). B uses least privilege (remove tools this role never needs). D uses the slogan \"hooks are deterministic\". C is phrased as tersely as the others and is not the longest. Without the stem, A, B, and C each look like a complete fix. The decisive evidence is split and sits mid-stem: the 8% `end_turn` text replies rule out B and D (a PostToolUse hook never fires without a tool call), and the 3% repeat `lookup_order` calls rule out A. The candidate must combine both numbers to reach C. Red herrings: the teammate's more forceful prompt and the description rewrite, which pull toward the slogan \"fix descriptions or prompts first\". The pinned-model sentence removes the drift-row-18 ambiguity without favoring C over A."
+ },
+ "F0014": {
+  "key": [
+   "A"
+  ],
+  "rule": "If one tool's behavior and output change depending on a mode parameter, and better descriptions and examples haven't fixed the misuse, split it into purpose-specific tools that each have a clear contract.",
+  "why": {
+   "A": "Correct. `lookup_order` has become a generic tool: three backends and three payload shapes sit behind one enum, so choosing the right job has turned into choosing a parameter value. The team already enriched the description and examples, and the error rate barely moved (31% → 29%). That points to the interface design, not the wording. With separate tools, each with its own name, description, and output contract, the job becomes a tool-selection choice that the agent's description-based tool selection handles well.",
+   "B": "Keyword rules in the system prompt are still probabilistic guidance at the same layer that already failed, and they create unintended tool associations. Mapping \"refund\" (a word customers use loosely, according to the stem) will also pull the agent toward `process_refund` or misfire on real refund requests.",
+   "C": "Hooks are for rules that must hold, such as policy limits or prerequisites, not for guessing intent. A blanket rewrite would break the fifth of dispute conversations that legitimately ask about shipment status, and keyword detection on the conversation is a brittle intent classifier that sits in the wrong layer.",
+   "D": "`query_type` is already required, and the logs show the agent explicitly passing `status` or `returns`. A default only applies when the parameter is left out, so it would not change the calls that are actually wrong, and the overloaded contract would stay in place."
+  },
+  "evidence": [
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Fix overlap by renaming and rewriting (e.g., `analyze_content` → `extract_web_results`), or split generic tools into purpose-specific ones with defined contracts."
+   },
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "www_anthropic_com_engineering_writing_tools_for_agents",
+    "quote": "Make sure each tool you build has a clear, distinct purpose."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "System-prompt keywords can create unintended tool associations that override good descriptions."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Pre-call interception hooks block policy violations (e.g., refunds > $500) and redirect to escalation."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "www_anthropic_com_engineering_writing_tools_for_agents",
+    "quote": "Agents might call the wrong tools, call the right tools with the wrong parameters, call too few tools, or process tool responses incorrectly."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "Two slogans pull candidates away from the key. \"Fix the descriptions first\" fails because the stem says the description is already detailed and the examples barely helped (31% → 29%). \"Hooks beat prompts\" points to C, but the fifth of dispute conversations with real shipment questions rules it out. The \"refund\" red herring makes B's keyword mapping look sensible, but that same detail is why B causes collisions with `process_refund`. D only appeals to someone who misses that the parameter is required and is being passed explicitly. There is one real tension. The current define-tools doc recommends consolidating related operations under an `action` parameter. Here, though, each mode has a different backend and output contract, and the guide's task 2.1 bullet tells you to split generic tools into purpose-specific ones. The key follows the guide."
+ },
+ "F0015": {
+  "key": [
+   "A"
+  ],
+  "rule": "Facts that must survive a long conversation, such as amounts, dates, and what the customer expects, belong in a persistent case-facts block outside the summarized history. Don't rely on summaries to carry them forward.",
+  "why": {
+   "A": "The lost values came only from the customer and degraded over repeated summarization passes. A case-facts block outside the summarized history is never rewritten, so the exact amount, dates, and payment method reach every request, including the process_refund turn.",
+   "B": "This still routes critical values through two or three lossy rewrites and depends on each summary pass following the instruction. It is a probabilistic patch on the mechanism that is losing the data, not a place where the facts survive compaction.",
+   "C": "Trimming verbose tool output is good practice (the 45-field red herring), but it only slows context growth. Long disputes will still be summarized, and the lost values were never in tool output, so trimming does not protect them.",
+   "D": "A bigger window and a higher threshold postpone compaction but don't remove it. The longest disputes, which are the risky ones, would still be summarized, and long contexts carry their own recall degradation. A bigger context window is rarely the fix."
+  },
+  "evidence": [
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Progressive summarization loses numbers, dates, customer expectations. Keep a persistent \"case facts\" block outside summarized history."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "www_anthropic_com_engineering_effective_context_engineering_for_ai_agents",
+    "quote": "The art of compaction lies in the selection of what to keep versus what to discard, as overly aggressive compaction can result in the loss of subtle but critical context whose importance only becomes apparent later."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Trim verbose tool output to relevant fields (40+ fields → 5) before it accumulates."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "www_anthropic_com_engineering_effective_context_engineering_for_ai_agents",
+    "quote": "Waiting for larger context windows might seem like an obvious tactic. But it's likely that for the foreseeable future, context windows of all sizes will be subject to context pollution and information relevance concerns"
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_build_with_claude_context_windows",
+    "quote": "A larger context window allows the model to handle more complex and lengthy prompts, but more context isn't automatically better. As token count grows, accuracy and recall degrade, a phenomenon known as *context rot*."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The decisive detail sits mid-stem. The lost values came only from the customer, no tool ever returned them, and they decayed across several summarization passes. That rules out C, which matches the guide's \"trim 40+ fields → 5\" slogan and is baited by the 45-field red herring. It also rules out D, since a bigger window or higher threshold still means compaction for the longest disputes. B is the strongest distractor because it targets the summarizer directly. It fails because it still sends critical values through repeated lossy rewrites and relies on the model following the instruction. A keeps those values out of summarization entirely. Option lengths are balanced, so A is not the longest by a clear margin. Drift note (row 14): current docs say 1M-token windows and automatic compaction make context less of a constraint. Key this per the guide's 5.1 case-facts pattern."
+ },
+ "F0016": {
+  "key": [
+   "D"
+  ],
+  "rule": "Let the model choose tools inside a loop driven by stop_reason, and use code only for the specific rules that must always hold. Don't hard-code the whole tool sequence.",
+  "why": {
+   "A": "Splitting one fixed sequence into three keeps the pre-configured decision-tree design. A request that mixes concerns, like the 22% that combine billing and returns, still doesn't fit any single branch. The classifier also adds machinery when the real problem is that the code chooses the tools instead of the model.",
+   "B": "This patches one tool, but the code still forces every request through `lookup_order`. Account issues that don't need an order still go down an order-centric path, and Claude still can't call the tools a request actually needs, in the order it needs them.",
+   "C": "Moving to a loop driven by `stop_reason` is right. But compliance says refunds must never run without verified identity, and an instruction in the system prompt can still fail some of the time. That rule needs code that enforces it, not prompt guidance.",
+   "D": "This fixes both problems. In a `stop_reason` loop, Claude chooses tools for each request: it can skip `lookup_order` for account issues and look up several orders in a mixed request. The hook enforces the compliance rule in code, so a refund can't run without a verified ID."
+  },
+  "evidence": [
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Model-driven tool choice vs pre-configured decision trees."
+   },
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_how_tool_use_works",
+    "quote": "In practice this reads as: while `stop_reason == \"tool_use\"`, run the tools and continue the conversation."
+   },
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Block `process_refund` until `get_customer` returned a verified ID."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Prompts alone have a non-zero failure rate, so deterministic compliance needs code (e.g., identity verification before financial operations)."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "code_claude_com_docs_en_agent_sdk_agent_loop",
+    "quote": "Hooks can also short-circuit the loop: a `PreToolUse` hook that rejects a tool call prevents it from executing, and Claude receives the rejection message instead."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Decompose multi-concern requests, investigate in parallel with shared context, synthesize one resolution."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The slogan \"deterministic beats probabilistic\" pulls candidates toward A, which looks like stricter control, so they may miss that hard-coding the whole tool sequence is the task 1.1 anti-pattern. The not-found error is a red herring that makes B look like a fix. The \"three recognizable categories\" detail makes A's routing seem reasonable, but the 22% of mixed-concern messages rules it out. C and D differ only in prompt vs hook. The compliance requirement in the middle of the stem decides between them, so the candidate has to combine the loop design with the guidance on when code must enforce a rule."
+ },
+ "F0017": {
+  "key": [
+   "B"
+  ],
+  "rule": "If an agent copies a few-shot example onto cases that only look similar, rework the examples. Contrast look-alike cases and state the fact that decides each one. Don't delete the examples or reach for hooks.",
+  "why": {
+   "A": "This sounds like the 'hooks beat prompts' slogan, but it is the wrong fix here. Most annual-plan disputes are true duplicates that should be refunded, so blocking every annual-plan refund would cut first-contact resolution. The problem is a judgment call between two kinds of charge, not a fixed threshold rule.",
+   "B": "Correct. The agent escalates proration correctly 96% of the time on monthly plans, so it understands the policy. It fails mainly on cases that look like the annual-plan duplicate example. The examples show only actions, so the agent learned 'annual plan + second charge → refund'. Pairing look-alike cases that end differently, and naming the deciding fact and why the alternative was rejected, teaches the judgment instead of the surface pattern.",
+   "C": "The policy is already understood and applied, as the monthly-plan results show. The example is overriding the rule, not hiding it. Stronger wording is an abstract instruction, and examples steer behavior more strongly than abstract instructions do.",
+   "D": "The examples were added because policy text alone gave inconsistent handling of near-identical disputes, and consistency has improved since. Removing them would bring back that problem. The fix is better examples, not no examples."
+  },
+  "evidence": [
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "2–4 targeted examples of ambiguous cases, showing why one action beats plausible alternatives."
+   },
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "platform_claude_com_docs_en_build_with_claude_prompt_engineering_claude_prompting_best_practices",
+    "quote": "Cover edge cases and vary enough that Claude doesn’t pick up unintended patterns."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Most effective fix when instructions alone give inconsistent format or quality."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Target 80%+ first-contact resolution while knowing when to escalate."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_test_and_evaluate_strengthen_guardrails_increase_consistency",
+    "quote": "Provide examples of the output you want. This is more effective than abstract instructions."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "There are two slogan traps. The $500 hook detail pulls 'hooks beat prompts' candidates toward A. 'Most annual-plan disputes are true duplicates' is the fact that rules A out, because a blanket block would hurt first-contact resolution. The 96% monthly-plan accuracy, placed mid-stem, shows the policy is understood, which rules out C. It also shows the failures follow the example's surface features. D is tempting to anyone who reads 'the examples caused it', but the earlier inconsistency with policy text alone rules it out. Drift note: the exam guide recommends 2–4 examples and current docs recommend 3–5. This item doesn't depend on the count. Three examples fits both."
+ },
+ "F0018": {
+  "key": [
+   "A"
+  ],
+  "rule": "If the agent misreads tool data, normalize the tool result in a PostToolUse hook before the model sees it. A pre-call gate only checks actions the agent actually attempts.",
+  "why": {
+   "A": "The root cause is the inbound data: the model misreads epoch integers and numeric status codes from one backend, and nobody can change that API. A PostToolUse hook normalizes every result before the model reasons over it. That fixes wrongful denials and wrongful approvals alike, and it is deterministic, unlike the prompt fix that already plateaued.",
+   "B": "This follows the 'hooks gate refunds' slogan but intercepts at the wrong point. About 80% of the errors are wrongful denials where `process_refund` is never called, so a gate on that call cannot catch them. At most it blocks a few wrongful approvals.",
+   "C": "Few-shot examples are another probabilistic prompt fix for a data-format problem. The stem shows prompt guidance about the formats already stalled at 9%. Asking the model to convert dates on every turn leaves a non-zero error rate that a hook removes.",
+   "D": "Escalating every legacy-backend return moves solvable cases to humans and works against the 80% first-contact-resolution target. With the backend frozen for a year, this is not a temporary measure, and it hides the problem instead of fixing it."
+  },
+  "evidence": [
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "`PostToolUse` hooks transform tool results before the model sees them (normalize Unix vs ISO 8601 timestamps, numeric status codes)."
+   },
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "code_claude_com_docs_en_agent_sdk_hooks",
+    "quote": "To replace the tool's output before Claude sees it, set `updatedToolOutput`, which works for any tool in both SDKs."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "code_claude_com_docs_en_hooks",
+    "quote": "For redaction or transformation use cases, intercept at `PreToolUse` for outbound tool inputs and `PostToolUse` for inbound tool results."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Hooks = deterministic guarantees; prompts = probabilistic compliance. Choose hooks when rules must hold."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Target 80%+ first-contact resolution while knowing when to escalate."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The main trap is B. A candidate who remembers 'pre-call hooks block policy violations on refunds' will pick it. The decisive detail sits mid-stem: 80% of errors are wrongful denials that never reach `process_refund`, so only fixing the data the model reads addresses them. C attracts candidates who know 'few-shot fixes inconsistency', but the stem already shows prompt guidance about the formats stalling at 9%. D looks like a safe, conservative choice, but it gives up the FCR target for a year. The candidate has to combine two facts: the backend is frozen and the errors are inbound misreadings. Together they point to a PostToolUse normalization hook rather than an outbound gate. There is no drift: current docs still support replacing tool output in PostToolUse via `updatedToolOutput`."
+ },
+ "F0019": {
+  "key": [
+   "C"
+  ],
+  "rule": "Scope tools to the role: remove tools the agent never legitimately uses. Hiding them, describing them better, or blocking them after the call does not do the same job.",
+  "why": {
+   "A": "The descriptions already had boundaries from last sprint's rewrite, and misrouting still went up. A better description can't fix a tool that doesn't belong in this agent's set.",
+   "B": "The staging trial already tested this fix. Deferred tools stay in the searchable catalog, so refund and credit wording kept pulling `apply_account_credit` back in, and errors only fell to 9%. Deferring cuts tokens, which is what the 9k-token detail tempts you toward, but the out-of-role tools are still reachable.",
+   "C": "The support role never uses the 13 finance tools. Having them reachable at all is what causes the misrouting. Removing them leaves a small, role-appropriate set the agent can choose from reliably. It keeps `check_shipment_status` because that is the one new tool the role uses.",
+   "D": "A hook is deterministic, but here it only compensates after the mistake. The agent still sees 18 tools, still picks the wrong one, and wastes a turn on the rejection. Hooks enforce policy on tools a role legitimately holds. They don't replace proper tool scoping."
+  },
+  "evidence": [
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Too many tools (18 vs 4–5) degrades selection. Tools outside an agent's role get misused."
+   },
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Scope tools per role. Allow limited cross-role tools for high-frequency needs (e.g., `verify_fact` for synthesis), route complex cases via coordinator."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_tool_search_tool",
+    "quote": "Tools with `defer_loading: true` load only when Claude discovers them through search."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_tool_search_tool",
+    "quote": "Claude searches your tool catalog (including tool names, descriptions, argument names, and argument descriptions) and loads only the tools it needs."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "code_claude_com_docs_en_agent_sdk_subagents",
+    "quote": "A tool you leave out isn't in the subagent's session at all: Claude works without it, with no permission prompt or error."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Pre-call interception hooks block policy violations (e.g., refunds > $500) and redirect to escalation."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Descriptions are the primary selection signal. Minimal or overlapping descriptions cause misrouting."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The stem reports a staging trial of deferred loading: searches kept surfacing `apply_account_credit`, and errors only fell from 11% to 9%. That rules out B, because hidden tools are still reachable. The trial sits mid-stem, and the 9k-token figure still pulls toward B. The earlier description rewrite rules out A. D fits the \"hooks beat prompts\" slogan but only acts after the wrong pick, and the agent still sees all 18 tools. The candidate has to combine the role-usage evidence (only `check_shipment_status` appears in support tickets) with the failure of the softer fixes to land on removal. Scope note: tool search and `defer_loading` come from current docs and are tested directly on Professional (P3.8), not in the Foundations blueprint. The key rests on Foundations task 2.3 (scope tools per role), not on recall of tool-search details."
+ },
+ "F0020": {
+  "key": [
+   "A"
+  ],
+  "rule": "When the human receiving an escalation does not have the transcript, make the handoff tool carry a required structured summary: customer ID, what is at stake, the cause, what was tried, and the recommended action.",
+  "why": {
+   "A": "The specialists see only the arguments passed to `escalate_to_human`, so the handoff has to carry the facts itself. Required fields enforce that structure on every escalation: verified ID, amount, cause, actions taken, and recommended action. A free-text string can't guarantee this, and the logs show it doesn't.",
+   "B": "This fixes the wrong layer. The pilot showed that specialists won't work through 30-turn transcripts during a live handoff. A table of contents only speeds up navigation. It still doesn't give them the diagnosed cause or a recommended action.",
+   "C": "This is a probabilistic fix to a structural problem. The logs already show that free-text reasons leave out amounts and order numbers, even when they are long. Asking for more thoroughness in a prompt doesn't ensure the key facts appear every time.",
+   "D": "Fresh backend data shows who the customer is and what they ordered. It doesn't explain what the dispute is about, what the agent already tried, or what it recommends. That missing context is why specialists keep asking customers to repeat themselves."
+  },
+  "evidence": [
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Escalation handoff = structured summary (customer ID, root cause, amount, recommended action) for humans who lack the transcript."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Programmatic enforcement (hooks, prerequisite gates) vs prompt guidance. Prompts alone have a non-zero failure rate, so deterministic compliance needs code (e.g., identity verification before financial operations)."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Upstream agents return structured facts, not verbose reasoning, when downstream context is tight."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The decisive detail sits mid-stem: the transcript pilot failed. It rules out B, which otherwise looks like \"give humans more context.\" The second detail is that even long free-text reasons leave out amounts. That defeats C, which appeals to candidates who think a better prompt is the proportionate first step. D appeals to the slogan \"pull fresh data deterministically,\" but it doesn't supply the cause, the actions already taken, or the recommended action. The key is shorter than every distractor. Every stem word in the key (escalate_to_human, customer, order, amount) also appears in at least one distractor."
+ },
+ "F0022": {
+  "key": [
+   "C"
+  ],
+  "rule": "If the agent picks the right tool but fills it with the wrong value, fix the tool interface first. Name each parameter for exactly what it holds, and document the expected format and where the value comes from.",
+  "why": {
+   "C": "Tool selection is already accurate at 97%, so the fault is in the tool's input contract. One argument named `id` gives no hint whether it wants an account ID or an order number, and the agent reuses the ID it just got from `get_customer`. With separate `order_number` and `customer_id` parameters and documented sources, the agent has a clear slot for each value. The backend can then run the right query, and the 8-digit collisions go away.",
+   "A": "Few-shot examples in the system prompt work around an ambiguous interface instead of fixing it. When the agent fills in the arguments, the tool definition is the main signal it reads. As long as the schema has one generic `id`, it still invites the agent to reuse the customer ID. This is a probabilistic patch applied at the wrong layer.",
+   "B": "Structured errors help the agent recover, but the stem's decisive detail rules this out. Account IDs and order numbers share the same 8-digit format, so a third of the bad calls return a real order belonging to someone else and raise no error. This option only treats the visible 'no order found' symptom, which is the red herring in the stem.",
+   "D": "This applies the 'gate before order operations' slogan, but the logs show `get_customer` already succeeded before almost every bad call. The verified customer ID is exactly the value being misused, so the gate would let every one of these calls through."
+  },
+  "evidence": [
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "www_anthropic_com_engineering_writing_tools_for_agents",
+    "quote": "In particular, input parameters should be unambiguously named: instead of a parameter named user , try a parameter named user_id ."
+   },
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_define_tools",
+    "quote": "What each parameter means and how it affects the tool’s behavior"
+   },
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Include input formats, example queries, edge cases, boundaries, and when to use it vs similar tools."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Descriptions are the primary selection signal. Minimal or overlapping descriptions cause misrouting."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "www_anthropic_com_engineering_writing_tools_for_agents",
+    "quote": "Avoid ambiguity by clearly describing (and enforcing with strict data models) expected inputs and outputs."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Block `process_refund` until `get_customer` returned a verified ID."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The stem attracts candidates who rely on slogans. Readers who apply 'gate before order operations' (F-Q1 style) pick D, but the logs show `get_customer` already succeeded, so the gate does nothing. The rising 'no order found' complaints point toward structured errors (B), but the matching 8-digit formats mean a third of the failures return the wrong customer's data with no error at all. The 97% selection accuracy steers readers away from 'fix the descriptions', which is a trap, because the defect is in the argument interface, not tool choice. Few-shot (A) is the usual next-best answer, but it patches the prompt instead of the tool contract. To get the key, a candidate has to combine the matching formats with the argument reuse after `get_customer`. No drift applies."
+ },
+ "F0021": {
+  "key": [
+   "D"
+  ],
+  "rule": "Route subagent-to-subagent handoffs through the coordinator so it sees each outcome first-hand. Peer calls hide errors behind a summary, and no prompt instruction reliably brings them back.",
+  "why": {
+   "A": "The stem says a clear, prominent relay instruction already exists, and the subagent still paraphrased the error 31 times. Stronger wording and few-shot examples are a probabilistic fix for a failure the prompt has already shown it can't prevent. They also leave the routing as it is: the coordinator still gets the refund outcome second-hand from a peer, not from the refund step it should control.",
+   "B": "This fixes a different problem. The failures are business errors marked isRetryable false, so retrying can't recover them. Retries also leave the real gap in place: the coordinator never sees the refund outcome.",
+   "C": "This is a detective control. It finds mismatches only after customers have already been told a refund was issued. The routing that hides the error from the coordinator stays the same.",
+   "D": "The direct peer call took the refund step out of the coordinator's control. A subagent's intermediate tool results stay inside it, so the coordinator saw only the billing-dispute subagent's paraphrase of the refund error. Sending the handoff back through the coordinator lets it read the refund outcome first-hand and handle the business error before it answers the customer. The 18% latency gain doesn't justify telling customers a refund went through when it didn't."
+  },
+  "evidence": [
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Hub-and-spoke: coordinator owns all inter-subagent communication, error handling, routing (observability, consistency)."
+   },
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "code_claude_com_docs_en_agent_sdk_subagents",
+    "quote": "Either way, intermediate tool calls and results stay inside the subagent; only its final message returns to the parent."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Programmatic enforcement (hooks, prerequisite gates) vs prompt guidance. Prompts alone have a non-zero failure rate, so deterministic compliance needs code (e.g., identity verification before financial operations)."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Business violations get `retriable: false` plus a customer-friendly explanation."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Subagents recover locally from transient failures and propagate only unresolved errors, with partial results and what was attempted."
+   },
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "www_anthropic_com_engineering_multi_agent_research_system",
+    "quote": "LLM agents are not yet great at coordinating and delegating to other agents in real time."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The new detail sits in the middle of the stem: a clear, prominent relay instruction already exists and still failed. That rules out A, which now offers a stronger version of a prompt fix that already failed. Without that detail, a candidate who only knows \"error context should reach the coordinator\" could argue for A. The well-formed business error with isRetryable false rules out B. Candidates drawn to monitoring are pulled toward C, which only catches mismatches after customers were told. The 18% latency gain is the red herring that makes keeping the peer call look appealing. To reach D, the candidate has to combine two facts: the routing change moved refund handling out of the coordinator, and the error was lost because the billing-dispute subagent only summarized it."
+ },
+ "F0023": {
+  "key": [
+   "A"
+  ],
+  "rule": "If the context is far from full and errors cluster mid-session, the problem is attention. Trim tool output to the relevant fields and put key facts first under headers. Don't summarize or delete them.",
+  "why": {
+   "A": "The errors cluster mid-session, while the first and most recent orders come out right. That is the lost-in-the-middle pattern, and 45-field results bury the few numbers that matter. Trimming each result to the relevant fields removes the noise. A headed case-facts block at the start of context keeps each order's dates and amounts where the model reliably attends.",
+   "B": "This follows the teammate's slogan, but 38k tokens is not a size problem. Progressive summarization is known to lose exactly the numbers and dates being misquoted here, so it would likely make the errors worse. (Current docs push server-side compaction as the main long-context strategy. The guide's keying for 5.1 still warns that summarization loses figures.)",
+   "C": "This is a probabilistic fix that adds more instructions to the same diluted context. The facts stay buried among roughly 45 irrelevant fields per order, so attention to the middle of the session doesn't improve.",
+   "D": "This cuts noise at the wrong granularity. It deletes whole results, including the middle orders whose dates and amounts the agent still needs for the dispute. The agent loses those facts instead of quoting them wrong, and nothing preserves them elsewhere."
+  },
+  "evidence": [
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Lost-in-the-middle: put key findings first and use explicit section headers."
+   },
+   {
+    "option": "A",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Trim verbose tool output to relevant fields (40+ fields → 5) before it accumulates."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Progressive summarization loses numbers, dates, customer expectations. Keep a persistent \"case facts\" block outside summarized history."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_build_with_claude_context_editing",
+    "quote": "Tasks requiring precise recall of early conversation details"
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "www_anthropic_com_engineering_effective_context_engineering_for_ai_agents",
+    "quote": "Every new token introduced depletes this budget by some amount, increasing the need to carefully curate the tokens available to the LLM."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_build_with_claude_context_editing",
+    "quote": "When activated, the API automatically clears the oldest tool results in chronological order."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The deciding evidence sits mid-stem: errors cluster on orders looked up mid-session, while the first and most recent orders are correct, and peak context is only about 38k tokens. The teammate's proposal is a red herring that steers slogan-driven candidates toward B, which is current docs' main long-context strategy. D tempts anyone who has memorized \"cut the noise\", but it deletes needed facts along with the noise. C is the probabilistic fix that sounds diligent. Only A combines both 5.1 techniques: trimming tool output and placing key facts first under headers."
+ },
+ "F0024": {
+  "key": [
+   "D"
+  ],
+  "rule": "If the customer explicitly asks for a human, escalate right away. If the customer is frustrated but the issue is solvable, offer the resolution first and escalate only if they insist. Get this calibration from explicit criteria plus few-shot examples, not from sentiment scores, confidence scores, or keyword matching.",
+  "why": {
+   "A": "Wrong because it follows the slogan \"hooks beat prompts\" but misses this situation. The stem says the requests were worded in many different ways (\"is anyone real there?\", \"I'm done with the bot\"), so a keyword scan misses many of them. It also does nothing about the 58 cases where frustrated customers were handed off too early.",
+   "B": "Wrong because it falls for the red herring. The 20% rise after the prompt edit makes it tempting to tune the sentiment signal, but sentiment is not a reliable escalation trigger. Even with a two-turn threshold, it would still hand off angry customers whose refunds are covered by policy. It also does nothing to make the agent honor explicit requests for a person.",
+   "C": "Wrong because self-rated confidence is poorly calibrated, so it is a bad routing signal. Its few-shot examples still sit on top of a confidence threshold, so an explicit request for a person would not trigger an immediate handoff.",
+   "D": "Correct because it replaces both faulty prompt lines with explicit criteria. An explicit request for a person triggers an immediate handoff, which fixes the 31 delayed cases. Anger about an issue the policy covers gets the resolution offered first, with escalation only if the customer keeps insisting, which fixes the 58 premature handoffs. Few-shot examples teach the agent to recognize both patterns however customers word them."
+  },
+  "evidence": [
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Triggers: customer asks for a human (honor immediately), policy exception/gap (policy silent on the case), no meaningful progress."
+   },
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Frustrated but solvable: acknowledge, offer resolution, escalate if they repeat the request."
+   },
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Fix calibration with explicit criteria + few-shot examples in the system prompt."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Not reliable proxies: sentiment, self-reported confidence."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Not reliable proxies: sentiment, self-reported confidence."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Frustrated but solvable: acknowledge, offer resolution, escalate if they repeat the request."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The stem contains two opposite failures: escalating too late when a person is requested, and too early on anger alone. Only one option fixes both. A pulls candidates who remember \\\"hooks beat prompts\\\", but the detail mid-stem that the requests were worded in many different ways defeats a keyword hook, and the hook leaves the second pattern untouched. B pulls candidates who apply \\\"look at what changed\\\", because the 20% rise after the \\\"seems upset\\\" edit is a red herring pointing toward tuning sentiment. C borrows the right tool (few-shot examples) but attaches it to a self-confidence signal. Every word the key shares with the stem also appears in at least one distractor. No drift issue applies to this task."
+ },
+ "F0025": {
+  "key": [
+   "B"
+  ],
+  "rule": "When a tool can't reach its backend, it must return a structured, retryable error (isError + category + cause). An empty result marked as success is wrong, because an access failure is not a valid empty result.",
+  "why": {
+   "A": "This is a probabilistic prompt fix applied to the wrong signal. The agent still can't tell an outage from a real no-match. One retry won't outlast a 40-minute failover. It would also escalate the roughly 6% of legitimate no-match lookups that the agent already resolves by asking for an email, which hurts first-contact resolution.",
+   "B": "The root cause is in the server. After its local retries run out, it swallows the timeout and returns a successful empty list, so the agent reasonably treats it as 'no such order'. A structured tool execution error (transient category, retryable, plain-language cause) lets the agent tell the customer the system is temporarily down and retry or escalate. The 6% genuine no-match path stays unchanged.",
+   "C": "The stem shows the server already retries locally with backoff, and those retries were exhausted. Ten attempts with a longer ceiling still can't outlast a 40-minute failover, and they make each customer wait longer. The final response is still an empty list marked as success, so the timeout is still swallowed, just later. More local retries don't replace sending the unresolved error to the agent.",
+   "D": "This fits the 'hooks beat prompts' slogan, but the hook runs downstream of the server, which has already discarded the timeout. The hook can't separate an outage from the 6% of genuine no-match results. It would turn valid empty results into false errors and break the cart/quote-number handling that already works."
+  },
+  "evidence": [
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Generic \"Operation failed\" prevents recovery. Return `errorCategory`, `isRetryable`, and a human-readable description."
+   },
+   {
+    "option": "B",
+    "role": "supports key",
+    "doc": "modelcontextprotocol_io_specification_2026_07_28_server_tools",
+    "quote": "contain actionable feedback that language models can use to self-correct and retry with adjusted parameters"
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Subagents recover locally from transient failures and propagate only unresolved errors, with partial results and what was attempted."
+   },
+   {
+    "option": "C",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Anti-patterns: generic \"search unavailable\", silently returning empty-as-success, killing the whole workflow on one failure."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Access failure ≠ valid empty result."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_handle_tool_calls",
+    "quote": "Write instructive error messages. Instead of generic errors such as `\"failed\"`, include what went wrong and what Claude should try next"
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "The decisive detail sits mid-stem: the server already retried three times with backoff (about 20 seconds) before returning the empty list. So C, which only adds more retries, can't fix a 40-minute failover and still ends in empty-as-success. Candidates who remember the slogan \"recover locally from transient failures\" are pulled toward C. D catches the slogan \"hooks beat prompts\", but the 6% genuine no-match detail rules it out. The red herring is the frustration in the transcripts, which tempts toward escalation (A). The note that the description was rewritten and tool selection is above 98% rules out a description or routing fix. B is not the longest option."
+ },
+ "F0026": {
+  "key": [
+   "C"
+  ],
+  "rule": "If tool misrouting starts right after a system-prompt edit while the tool descriptions stay the same, the prompt's wording has created a tool association. Fix the wording that causes it. Don't add more layers on top.",
+  "why": {
+   "A": "This fixes the wrong layer. The descriptions had not changed and routing was fine before the edit, so they are not the cause. The short `escalate_to_human` description is a red herring. A system-prompt instruction that links disputes to human verification can override even a good description.",
+   "B": "This applies the 'hooks beat prompts' slogan to a problem that isn't about enforcement. Blocking escalation does not steer the agent to `lookup_order`. It would also block escalations the agent should make, such as a customer asking for a human, which must be honored right away.",
+   "C": "Correct. The misrouting began with the compliance section, the descriptions stayed the same, and the agent cites verification before it escalates. Together these show the section's broad wording tied 'dispute' to `escalate_to_human`. Narrowing the section to issuer chargebacks, the only case compliance actually requires, and naming the tool for other disputes removes the false association at its source.",
+   "D": "Few-shot examples fix inconsistent output when instructions are unclear. Here the instruction is clear, overbroad, and followed consistently. Examples placed next to it would contradict it, and the faulty association would stay in place."
+  },
+  "evidence": [
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "System-prompt keywords can create unintended tool associations that override good descriptions."
+   },
+   {
+    "option": "C",
+    "role": "supports key",
+    "doc": "platform_claude_com_docs_en_agents_and_tools_tool_use_define_tools",
+    "quote": "the API constructs a special system prompt from the tool definitions, tool configuration, and any user-specified system prompt."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Triggers: customer asks for a human (honor immediately), policy exception/gap (policy silent on the case), no meaningful progress."
+   },
+   {
+    "option": "D",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Most effective fix when instructions alone give inconsistent format or quality."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Descriptions are the primary selection signal. Minimal or overlapping descriptions cause misrouting."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "Each distractor fits a slogan. 'Fix the descriptions first' points to A, and the two-sentence `escalate_to_human` description is a red herring that makes A look right. 'Hooks beat prompts' points to B, and the chargeback detail makes B look compliance-correct. 'Add few-shot' points to D. The deciding evidence sits in the middle of the stem: the descriptions did not change, the jump from 4% to 27% began with the system-prompt edit, the agent cites verification, and compliance narrowed the requirement to chargebacks. To pick C, the candidate has to connect the timing with the keyword-association principle from task 2.1. This item doesn't touch any drift-table row."
+ },
+ "F0027": {
+  "key": [
+   "D"
+  ],
+  "rule": "A coordinator should choose which subagents to run based on what each request needs, not send every request through the full pipeline. A specialist that is accurate in its own domain makes noise when it is invoked on requests outside that domain.",
+  "why": {
+   "A": "Wrong because it follows the parallel-Task-calls guidance, but parallelism only reduces latency. Latency is already 41 s against a 90 s target, so this is the red herring. Running in parallel still invokes billing analysis on every order-status ticket, so the false duplicate-charge notes continue.",
+   "B": "Wrong because it treats the symptom after the fact. The unneeded subagent still runs, and its output is discarded only after it is produced. Filtering on an order-status tag would also drop real billing findings on the one-in-six tickets that mix an order question with a charge question. Hooks are for rules that must hold, and the only such rule here (verification first) is not what is failing.",
+   "C": "Wrong because it fits the 'explicit categorical criteria' guidance, but it tunes a subagent the billing team has confirmed is accurate where it belongs. Ignoring pending authorizations would hide exactly the early-duplicate signal they asked to see on real disputes. The fault is that the subagent runs where there is no billing concern, not how it judges charges.",
+   "D": "Correct. The traces show a fixed four-subagent pipeline on every ticket, and the false findings appear only where billing analysis had nothing to examine. Letting the coordinator choose specialists per request removes that noise at the source. It still runs both order and billing specialists on mixed tickets, and it keeps the required verification-first ordering."
+  },
+  "evidence": [
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Coordinator decomposes, delegates, aggregates, and picks which subagents to run based on the query, not always the full pipeline."
+   },
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "www_anthropic_com_engineering_multi_agent_research_system",
+    "quote": "Scale effort to query complexity. Agents struggle to judge appropriate effort for different tasks, so we embedded scaling rules in the prompts."
+   },
+   {
+    "option": "D",
+    "role": "supports key",
+    "doc": "exam-guide",
+    "quote": "Decompose multi-concern requests, investigate in parallel with shared context, synthesize one resolution."
+   },
+   {
+    "option": "A",
+    "role": "rules out distractor",
+    "doc": "www_anthropic_com_engineering_multi_agent_research_system",
+    "quote": "These changes cut research time by up to 90% for complex queries, allowing Research to do more work in minutes instead of hours while covering more information than other systems."
+   },
+   {
+    "option": "B",
+    "role": "rules out distractor",
+    "doc": "exam-guide",
+    "quote": "Hooks = deterministic guarantees; prompts = probabilistic compliance. Choose hooks when rules must hold."
+   }
+  ],
+  "question_type": "most effective",
+  "hardness_note": "Each distractor now matches a guide guideline: A matches parallel Task calls in one response, B matches 'hooks beat prompts', and C matches explicit categorical criteria. D is no longer the only option that sounds like a best practice, and it is not the longest. The decisive details sit mid-stem. First, the billing team confirms the subagent is accurate on real disputes and wants pending authorizations surfaced there, which rules out C. Second, one ticket in six mixes concerns, which rules out B's tag-based stripping. The engineer's parallelization proposal is the red herring, and the 41 s vs 90 s figure shows latency is not the problem. The stem no longer quotes the coordinator's 'run all four in order' instruction. The fixed pipeline shows up only as a trace observation."
+ }
+}

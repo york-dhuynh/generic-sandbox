@@ -1,0 +1,8 @@
+CLAUDE.local.md
+.claude/settings.local.json
+.env
+.env.*
+!.env.example
+labs/**/.venv/
+labs/**/node_modules/
+__pycache__/

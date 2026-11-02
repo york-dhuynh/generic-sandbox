@@ -1,0 +1,1014 @@
+[
+ {
+  "id": "F0002",
+  "task": "2.1",
+  "domain": "2",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 1,
+  "stem": "Two weeks ago your team rewrote the tool descriptions. `process_refund` now says it issues a new refund and is not for checking refund status. `lookup_order` now says it returns order details including refund status. Misrouting persists: in 9% of conversations where a customer asks about an existing refund (e.g., \"where's my refund for #5521?\"), the agent calls `process_refund`. The backend rejects these as duplicates, so no money moves, but most of these conversations end in escalation. Logs show 96% of the misrouted calls come from messages containing the word \"refund\". The same status question phrased as \"where's my money for #5521?\" routes correctly to `lookup_order`. The system prompt contains: \"Whenever a customer mentions a refund, use process_refund to resolve it promptly.\" What is the most effective fix?",
+  "options": {
+   "A": "Rewrite the system-prompt line so `process_refund` is tied to a request for a new refund rather than to the word \"refund\", letting the descriptions govern selection.",
+   "B": "Add three few-shot examples to the system prompt showing refund-status questions routed to `lookup_order`, keeping the existing refund instruction as written.",
+   "C": "Add a PreToolUse hook that blocks `process_refund` when the order already has a refund on file and returns an error pointing the agent to `lookup_order`.",
+   "D": "Consolidate `lookup_order` and `process_refund` into one `manage_order` tool with an `action` parameter so a single description covers both operations."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "dev",
+  "reason": "second option defensible: C",
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "C": 2
+   },
+   "options_only": "2/2",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "cost_usd": 1.8237
+ },
+ {
+  "id": "F0001",
+  "task": "1.2",
+  "domain": "1",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 2,
+  "stem": "Your team split the support agent into a coordinator and three specialist agents (billing-dispute, returns, account). To cut latency, an engineer changed the flow so the billing-dispute agent passes its findings straight to the returns agent through a shared queue instead of reporting back. Since then, in 7% of tickets that combine a billing dispute with a return, the billing lookup times out. The returns agent then issues a refund from partial data, and the coordinator marks the ticket resolved. Coordinator traces contain no record of the timeout. Which change most effectively fixes this?",
+  "options": {
+   "A": "Have the returns agent re-run the billing lookup itself whenever a queued handoff arrives incomplete, before it calls process_refund.",
+   "B": "Route every handoff between specialist agents back through the coordinator, so it sees each result or error and picks the next step.",
+   "C": "Add structured error fields to the shared-queue payload so the returns agent sees the billing agent's timeout and partial results.",
+   "D": "Add a SubagentStop hook that writes each queued handoff into the coordinator's trace log so the timeout is recorded there."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "dev",
+  "reason": "second option defensible: C",
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "C": 4
+   },
+   "options_only": "1/2",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "cost_usd": 4.0323
+ },
+ {
+  "id": "F0003",
+  "task": "4.2",
+  "domain": "4",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 1,
+  "stem": "Your agent's system prompt contains a detailed returns and billing policy and five few-shot examples, all clear-cut cases such as an in-window return with photos or an obvious duplicate charge. A review of 300 recent tickets shows that clear-cut cases get the same action 96% of the time. Two borderline patterns behave differently: damage reported 3–10 days past the return window, and partial-charge disputes where the customer's account conflicts with the order record. Near-identical tickets in these patterns get refunds, escalations, and denials in roughly equal shares. In those transcripts, the agent quotes the correct policy clause before choosing an action. All of these tickets are under $150, a PreToolUse hook already blocks `process_refund` above $500, and the policy team says most of these cases should be resolved without a human. Which change will most effectively make the agent handle these two patterns consistently?",
+  "options": {
+   "A": "Add 12–15 more few-shot examples sampled at random from last quarter's resolved tickets so the agent sees a wider range of real support cases.",
+   "B": "Add a PreToolUse hook that intercepts `process_refund` on these two ticket patterns and redirects them to `escalate_to_human` for a decision.",
+   "C": "Move the policy clauses for these two patterns to the top of the system prompt under explicit section headers so they are not lost in the middle.",
+   "D": "Replace two of the existing examples with three worked examples of these ticket patterns, each showing the chosen action and why the others were rejected."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "dev",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "0/2",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "medium",
+  "cost_usd": 1.2642
+ },
+ {
+  "id": "F0005",
+  "task": "5.1",
+  "domain": "5",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 1,
+  "stem": "Billing-dispute conversations with your agent often run past 40 turns. To control context growth, the agent replaces older turns with a model-written summary once the history crosses a token threshold. A QA review of 300 long sessions found that in 14% of them, after the first summarization pass, the agent quoted the wrong refund amount, cited the wrong charge date, or offered a different remedy from the one the customer had asked for. Reviewers compared summaries with transcripts. One example: \"customer disputes two charges of $84.10 and $129.99 posted March 3; wants refund to original card, not store credit\" became \"customer disputes recent charges; refund discussed.\" Last sprint the summarization prompt was revised to \"retain all key figures,\" and the error rate dropped only from 15% to 14%. Each lookup_order call also returns about 45 fields, and the agent uses only a handful of them. Which change would most effectively eliminate these errors?",
+  "options": {
+   "A": "Move the running summary to the top of each request under explicit section headers, so the dispute details are not buried mid-history.",
+   "B": "Trim each lookup_order result to the few fields the agent uses before appending it, so the history grows more slowly between turns.",
+   "C": "Hold order IDs, disputed amounts, charge dates, and the stated remedy in a case-facts block sent with every request, outside the summarized turns.",
+   "D": "Add few-shot examples to the summarization prompt showing compressed histories that keep each disputed amount, date, and remedy verbatim."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "dev",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "D": 1
+   },
+   "options_only": "2/2",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite failed rule checks; kept the original",
+  "cost_usd": 1.8336
+ },
+ {
+  "id": "F0004",
+  "task": "2.1",
+  "domain": "2",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 1,
+  "stem": "Tool selection held at 97% accuracy for three months after your team expanded all four tool descriptions with input formats, example queries, and boundaries against neighboring tools. Last Tuesday, the trust-and-safety team appended a section to the system prompt covering compromised accounts. That week, first-contact resolution fell from 81% to 72%. Logs show the agent now calls `escalate_to_human` first in 19% of billing and order conversations, up from 3%. Of these misrouted sessions, 91% include phrasing such as \"my account was charged twice\" or \"the order on my account\". The same requests worded without that term still route correctly to `lookup_order`. At four sentences, the `escalate_to_human` description is the shortest of the four, and a teammate points to that as the likely weak spot. What change most effectively restores correct routing?",
+  "options": {
+   "A": "Rewrite the new compromised-account guidance in the system prompt so it names concrete takeover signals, such as unrecognized logins, rather than accounts broadly.",
+   "B": "Expand the `escalate_to_human` description with explicit boundaries stating that billing and order questions mentioning an account belong to `lookup_order`.",
+   "C": "Add few-shot examples to the system prompt showing account-related billing and order requests routed to `lookup_order` before any escalation.",
+   "D": "Add a pre-call hook that blocks `escalate_to_human` unless the conversation shows compromised-account indicators, redirecting other cases to `lookup_order`."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "dev",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "B": 1
+   },
+   "options_only": "1/2",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite failed verification (second option defensible: C); kept the original",
+  "cost_usd": 1.3995
+ },
+ {
+  "id": "F0008",
+  "task": "1.2",
+  "domain": "1",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 1,
+  "stem": "Your support system uses a coordinator that delegates to three subagents: account verification, order investigation, and refund execution. To cut latency last sprint, an engineer changed the flow so the order-investigation subagent invokes the refund subagent itself when it confirms a damaged item. Median handling time fell 18%, and identity verification ran correctly on every ticket reviewed since. On multi-concern tickets, the coordinator works the billing concern while order investigation is still running. Traces now show two problems. On about 7% of multi-concern tickets, the coordinator offers a store credit on an order the refund subagent has already refunded. On a smaller set of tickets, `process_refund` returns a structured error with `isRetryable: false`, and the coordinator still tells the customer the refund is complete. In those traces, the coordinator received no result from the refund subagent, and the order-investigation summary says only \"refund handed off.\" Which change most effectively resolves both problems?",
+  "options": {
+   "A": "Add a hook that rejects a second resolution action, refund or credit, on any order that already has one recorded, and returns the earlier action to the caller.",
+   "B": "Have the order-investigation subagent return its findings to the coordinator, which decides whether to invoke the refund subagent and receives its result.",
+   "C": "Give the order-investigation subagent the `process_refund` tool directly and remove the separate refund subagent so it sees refund outcomes itself.",
+   "D": "Pass the coordinator's full conversation history into each subagent's prompt so every subagent can see which resolutions have already been offered."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "quarantined",
+  "reason": "second option defensible: A",
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "A": 2
+   },
+   "options_only": "1/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "medium",
+  "cost_usd": 2.5183,
+  "repair": "repair failed verification (second option defensible: A)"
+ },
+ {
+  "id": "F0007",
+  "task": "1.5",
+  "domain": "1",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [
+   "S1-bank-20261028-1544"
+  ],
+  "writes": 1,
+  "stem": "Your support agent already runs a pre-call hook that blocks `process_refund` above $500 and redirects those cases to `escalate_to_human`. Every audit so far shows that hook holding. A new review of 2,000 return conversations finds date-related mistakes in 9% of them. All of them involve orders from the legacy warehouse backend, which carries about 35% of order volume. Its `lookup_order` response encodes purchase and delivery dates as Unix epoch seconds, while the newer backend returns ISO 8601 strings. Finance's summary leads with $41,000 in refunds approved after the 30-day return window had closed. The transcript breakdown is broader: in roughly 80% of the flagged conversations, the agent told an eligible customer the window had already closed or quoted the wrong deadline, and the conversation ended with no `process_refund` call at all. Leadership wants a fix that does not depend on the model following instructions and does not route more cases to human agents. Which change most effectively eliminates the date errors?",
+  "options": {
+   "A": "Rewrite the `lookup_order` tool description to state that date fields may be epoch seconds or ISO 8601, with an example and a conversion rule for each.",
+   "B": "Run a hook on every `lookup_order` result that rewrites epoch-second date fields as ISO 8601 strings before the result enters the model's context.",
+   "C": "Run a hook on every `process_refund` call that recomputes the 30-day window from the order record and denies any call that falls outside it.",
+   "D": "Have `lookup_order` mark legacy-backend results with `isError` and a validation category so the agent confirms the dates with the customer first."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "C": 1
+   },
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewritten harder; difficulty signal now easy",
+  "cost_usd": 3.7637
+ },
+ {
+  "id": "F0006",
+  "task": "4.2",
+  "domain": "4",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [
+   "S1-bank-20261028-1544"
+  ],
+  "writes": 1,
+  "stem": "Last sprint you added explicit escalation criteria to the agent's system prompt, and decisions on clear-cut tickets are now 94% correct. A review of 300 recent transcripts shows the remaining errors cluster in three situations the policy deliberately leaves to agent discretion, weighing account history and how plausible the claim is: damage photos that show the item but not clearly the damage, returns requested one to three days past the 30-day window, and valid charges disputed by customers who say a cancellation confirmation never arrived. When the same transcripts are replayed, the agent quotes the correct policy clause every time, but on some runs it resolves the ticket and on others it calls escalate_to_human. Every disputed amount in these tickets is under $60, well below the $500 limit enforced by the existing pre-call refund hook. Which change would most effectively make the agent's handling of these situations consistent?",
+  "options": {
+   "A": "Rewrite the three policy clauses with more detailed decision rules and qualifiers so each discretionary situation is described more precisely in prose.",
+   "B": "Add three worked examples of these discretionary situations, each showing the chosen action and the reasoning that rules out the plausible alternative.",
+   "C": "Add a pre-call hook that intercepts process_refund and escalate_to_human in these situations and applies a fixed rule before either call proceeds.",
+   "D": "Add about fifteen examples sampled at random from resolved historical tickets so the prompt reflects the full range of requests the agent handles."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "C": 1
+   },
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite failed verification (second option defensible: A); kept the original",
+  "cost_usd": 1.4931
+ },
+ {
+  "id": "F0010",
+  "task": "5.2",
+  "domain": "5",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 1,
+  "stem": "A prerequisite hook already blocks `lookup_order` and `process_refund` until `get_customer` returns a customer ID. Even so, an audit of 40 incorrect refunds last month traced 31 of them to conversations where `get_customer` returned two or more accounts for the customer's stated name and ZIP code. In those transcripts, the agent chose the account whose recent orders best fit the customer's description of the problem. The hook let the refunds through because an ID had been returned. Lookups with more than one match happen in about 11% of conversations, and first-contact resolution is currently 76%. Which change would most effectively stop these misidentified refunds?",
+  "options": {
+   "A": "Add few-shot examples that show the agent comparing each candidate's order history against the customer's account of events before committing to one account.",
+   "B": "Extend the prerequisite hook so any conversation where `get_customer` returns more than one account is routed to `escalate_to_human` with all candidate IDs.",
+   "C": "Instruct the agent that when `get_customer` returns several accounts, it asks the customer for another identifier, such as email or order number, before choosing.",
+   "D": "Have the agent rate its confidence in the selected account from 1 to 10 and call `escalate_to_human` only when its rating falls below 7."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "quarantined",
+  "reason": "second option defensible: B",
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "B": 7
+   },
+   "options_only": "4/4",
+   "weak": "0/2"
+  },
+  "difficulty_signal": "easy",
+  "cost_usd": 1.3837,
+  "repair": "repair failed verification (second option defensible: B)"
+ },
+ {
+  "id": "F0009",
+  "task": "1.4",
+  "domain": "1",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 2,
+  "stem": "Three weeks ago your team deployed a pre-call hook that intercepts `process_refund` requests above $500 and redirects the agent to `escalate_to_human`. Since then, no over-limit refunds have gone through. An identity gate already sits in front of `process_refund`, and session logs show `get_customer` returned a verified customer ID in every escalated session before the refund attempt. Reviewer queue data now shows a median of 11 minutes per escalated ticket, against a 4-minute target. Each ticket displays the blocked amount, the hook's denial reason, and a link to the chat transcript, which typically runs 30–50 turns. Reviewers say they seldom open the transcript. Instead, they contact the shopper again to re-confirm identity, establish which purchase is in dispute, and work out what went wrong before they decide. A product manager proposes raising the limit to $1,000 to shrink the queue. Which change would most effectively bring handling time toward the target?",
+  "options": {
+   "A": "Add a prerequisite gate that blocks `escalate_to_human` calls until `get_customer` has returned a verified customer ID in the session.",
+   "B": "Embed the full chat transcript in each escalated ticket instead of a link, so reviewers see the complete history without opening it.",
+   "C": "Raise the hook's limit to $1,000 as proposed, so fewer refund requests reach the reviewer queue each week.",
+   "D": "Require `escalate_to_human` inputs to include the verified account ID, order number, root cause, refund amount, and recommended action."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "cost_usd": 1.185,
+  "repair": "repaired: no second option defensible"
+ },
+ {
+  "id": "F0013",
+  "task": "2.2",
+  "domain": "2",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 1,
+  "stem": "Over two weeks, 9% of `process_refund` calls came back with `isError: true` and the text \"Refund could not be processed.\" The refund backend attaches a specific rejection code to every failure, but the tool never exposes it. Backend logs show the breakdown: 70% were policy rejections (past the 30-day return window, or a non-refundable item type) that return the same rejection code on every attempt, 25% were payment gateway timeouts that succeeded on a second attempt, and 5% were amounts above the order total. A gateway vendor migration last month roughly doubled the timeout rate, and each gateway attempt can hold the chat for several seconds. Transcripts show the agent retrying policy rejections two or three times before telling customers about a \"temporary system issue,\" escalating many timeouts that one more attempt would have cleared, and resubmitting over-total amounts unchanged. Which change most effectively fixes how the agent recovers from these failures?",
+  "options": {
+   "A": "Change `process_refund` to return an error category, a retryable flag, and a customer-safe description of why the refund was declined.",
+   "B": "Wrap the backend call in `process_refund` with exponential-backoff retries on every rejection and return the same error text once all attempts fail.",
+   "C": "Add system prompt rules that cap refund retries at one attempt and tell the agent to escalate any refund that fails a second time.",
+   "D": "Add a PostToolUse hook that sends every `process_refund` result flagged `isError` to `escalate_to_human` with the conversation so far."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "cost_usd": 1.1583,
+  "repair": "repaired: no second option defensible"
+ },
+ {
+  "id": "F0011",
+  "task": "1.1",
+  "domain": "1",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 2,
+  "stem": "Your team drives the support agent with a hand-written loop over the Messages API so it can inject account data between turns. After launch, 9% of refund conversations stall. The last thing the customer sees is \"Let me pull up that order for you,\" and then nothing. Traces show that in each stalled session, the final model response contained that sentence and a lookup_order request with valid arguments, but the order service never logged an incoming call. In addition, 2% of sessions hit the loop's 12-iteration cap, mostly long billing disputes. Which change most effectively fixes the stalled refund conversations?",
+  "options": {
+   "A": "Raise the iteration cap to 25 and treat a session as finished only when the agent's reply contains a closing phrase such as \"anything else I can help with?\"",
+   "B": "Add a system-prompt rule telling the model to call lookup_order without any accompanying narration, so order-lookup turns contain no customer-facing text.",
+   "C": "Branch on stop_reason: while it equals \"tool_use\", run every requested tool and append the tool_result blocks to the history before calling the model again.",
+   "D": "Add a PostToolUse hook that inspects each lookup_order result and re-prompts the agent with a structured error whenever the order service returns no data."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite failed rule checks; kept the original",
+  "cost_usd": 2.0098
+ },
+ {
+  "id": "F0012",
+  "task": "2.3",
+  "domain": "2",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [
+   "S1-bank-20261028-1544"
+  ],
+  "writes": 1,
+  "stem": "Your support agent's pre-call hook blocks any `process_refund` above the $500 policy limit. When it fires, the application sends one follow-up request whose only job is to call `escalate_to_human` with the structured handoff (customer ID, order, amount, recommended action). The follow-up includes all four tools with `tool_choice: \"auto\"`, and the deployment pins a model version that accepts every `tool_choice` mode. Last sprint the team rewrote the `escalate_to_human` description with explicit when-to-use boundaries. Across 1,140 follow-ups, 8% return `stop_reason: \"end_turn\"` with only a text apology to the customer, and another 3% call `lookup_order` again to re-check the order, then stop without a handoff. A teammate points out that the description rewrite did not change the failure rate and proposes making the system prompt's escalation rule more forceful. Which change most reliably makes every follow-up produce the handoff?",
+  "options": {
+   "A": "Set the follow-up's `tool_choice` to `\"any\"`, so the response has to be a tool call and cannot end as a text reply.",
+   "B": "Send only `escalate_to_human` in the follow-up's tools array, removing tools this step never needs, and keep `\"auto\"`.",
+   "C": "Set the follow-up's `tool_choice` to the named `escalate_to_human` tool, so the response has to be that exact call.",
+   "D": "Register a `PostToolUse` hook on the follow-up that checks for an `escalate_to_human` call and resends the request if it is missing."
+  },
+  "checks": {
+   "fail": [],
+   "warn": [
+    "absolute term in an option"
+   ]
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewritten harder; difficulty signal now easy",
+  "cost_usd": 1.3839
+ },
+ {
+  "id": "F0014",
+  "task": "2.1",
+  "domain": "2",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [
+   "S1-bank-20261028-1544"
+  ],
+  "writes": 1,
+  "stem": "Last quarter your team added support for billing disputes without creating a new tool. `lookup_order` gained a required `query_type` enum (`status`, `returns`, `charges`). Each value queries a different backend and returns a payload with a different shape. The tool's description is eight sentences long and covers every mode. In dispute conversations, 29% of `lookup_order` calls explicitly pass `status` or `returns`. Those payloads contain no charge data, so the agent then tells customers that no duplicate charge exists. Last sprint the team added two worked examples per mode and three `input_examples`, but the error rate only moved from 31% to 29%. About a fifth of dispute conversations also include a real question about where a replacement shipment is. Transcripts show that customers often say \"refund\" when they mean a disputed charge. Which change would most effectively fix these errors?",
+  "options": {
+   "A": "Split `lookup_order` into separate tools for shipment status, return eligibility, and charges, each scoped and described for a single job.",
+   "B": "Add system-prompt rules that send phrases such as \"charged twice\" or \"refund\" to `lookup_order` with `query_type` set to `charges`.",
+   "C": "Add a pre-call hook that changes `query_type` to `charges` on every `lookup_order` call made after dispute terms appear in the conversation.",
+   "D": "Make `query_type` optional with `charges` as the default, so the shipment and return modes run only when the agent explicitly requests them."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite failed rule checks; kept the original",
+  "cost_usd": 0.9782
+ },
+ {
+  "id": "F0015",
+  "task": "5.1",
+  "domain": "5",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 2,
+  "stem": "Your agent keeps long sessions within budget by summarizing older turns each time history reaches 60k tokens. In long billing disputes this happens two or three times. An audit of 300 disputes found that 9% ended with a refund for the wrong amount or to the wrong payment method. In every failing case, the customer gave the wrong-refunded values in the first few turns, and no tool ever returned them. The successive summaries show the loss step by step: \"$214.60 charged twice, on March 3 and March 5; refund to original Visa\" became \"duplicate charge in early March\" and then \"customer has a billing issue.\" Separately, each `lookup_order` call returns about 45 fields, and most of them have nothing to do with refunds. Which change would most effectively eliminate these wrong-refund errors?",
+  "options": {
+   "A": "Keep customer-stated amounts, dates, and requested outcomes in a persistent case-facts block outside the summarized history, sent with every request.",
+   "B": "Rewrite the summarization prompt to require that every monetary amount, date, and customer commitment be carried forward verbatim into each summary.",
+   "C": "Trim each lookup_order result to the five refund-relevant fields before appending it, so summarization fires less often and drops fewer details.",
+   "D": "Switch to a model with a larger context window and raise the summarization threshold so most billing disputes finish without any compaction."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "quarantined",
+  "reason": "second option defensible: B",
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "B": 4
+   },
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "cost_usd": 1.3517,
+  "repair": "repair failed rule checks (stem words appear only in the key: customer, history)"
+ },
+ {
+  "id": "F0016",
+  "task": "1.1",
+  "domain": "1",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 1,
+  "stem": "Your first release wraps Claude in fixed orchestration code. For every request, the code calls `get_customer`, then `lookup_order`, then passes both results to Claude and asks it to choose between `process_refund` and `escalate_to_human`. First-contact resolution is 58%. In the logs, about 30% of volume is account issues such as address changes and locked logins. These have no order, so `lookup_order` returns a not-found error, and Claude escalates them. Another 22% of messages raise more than one concern, such as a disputed charge on one order and a return on a second, but only the first order is ever looked up. After last quarter's incident, in which refunds went to the wrong account, compliance requires that no refund ever runs without verified identity. Most requests still fall into three recognizable categories: returns, billing, and account. Which redesign is most effective?",
+  "options": {
+   "A": "Add a keyword classifier that routes each request to one of three fixed sequences (returns, billing, account), each of which still starts with `get_customer`.",
+   "B": "Keep the current sequence, but let `lookup_order` accept several order IDs and return an empty list instead of an error when the customer has no orders.",
+   "C": "Remove the fixed sequence and loop on `stop_reason` so Claude picks tools for each request. Add a system-prompt rule that refunds require a verified `get_customer` result.",
+   "D": "Remove the fixed sequence and loop on `stop_reason` so Claude picks tools for each request. Add a hook that blocks `process_refund` until `get_customer` returns a verified ID."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite failed rule checks; kept the original",
+  "cost_usd": 1.9581
+ },
+ {
+  "id": "F0017",
+  "task": "4.2",
+  "domain": "4",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [
+   "S1-bank-20261028-1544"
+  ],
+  "writes": 1,
+  "stem": "Two weeks ago you added three few-shot examples to the billing section of the agent's system prompt. With policy text alone, the agent had handled near-identical billing disputes inconsistently, and consistency has improved since. Each example shows a customer message followed by the tool calls the agent made, with no explanation of why. One example is an annual-plan customer reporting a second charge, which the agent refunds as a duplicate. This week's review of 210 annual-plan billing disputes finds that most were true duplicates and were refunded correctly. However, in 34 of the 41 cases where the second charge was a mid-cycle upgrade proration, the agent called `process_refund`. Policy says these charges must go to `escalate_to_human` instead. On monthly plans, the agent escalates proration disputes correctly in 96% of cases. All 34 refunds were below the $500 limit enforced by your existing pre-refund hook. What change would most effectively fix the annual-plan proration refunds?",
+  "options": {
+   "A": "Add a pre-call hook that blocks `process_refund` on annual-plan charges and routes those disputes to `escalate_to_human`.",
+   "B": "Rewrite the examples to pair look-alike disputes with different outcomes, each stating the deciding fact and why the other action was wrong.",
+   "C": "Move the proration rule to the top of the system prompt and restate it as a mandatory check before any billing refund.",
+   "D": "Remove the billing examples so the agent decides from the policy text alone, which it already applies correctly on other plans."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "A": 1
+   },
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite was no less guessable (4/4); kept the original",
+  "cost_usd": 2.0547
+ },
+ {
+  "id": "F0018",
+  "task": "1.5",
+  "domain": "1",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 2,
+  "stem": "Return-eligibility mistakes are dragging down first-contact resolution. An audit of 600 return conversations shows the agent misjudged the 30-day return window in 9% of them. Nearly every error involves an order from the legacy warehouse backend. That backend's `lookup_order` response encodes delivery dates as Unix epoch integers and fulfillment status as numeric codes (e.g., 4), while the newer backend returns ISO 8601 dates and text statuses. About 80% of the errors are wrongful denials: the agent told an eligible customer the window had closed and never called `process_refund`. Last sprint the team added a system-prompt section documenting both formats, which lowered the error rate only from 11% to 9%. The warehouse team cannot change the legacy API this year. Which change most effectively fixes the eligibility errors?",
+  "options": {
+   "A": "Register a PostToolUse hook that rewrites order results, converting epoch dates to ISO 8601 and numeric status codes to text, before the model reads them.",
+   "B": "Add a pre-call hook on `process_refund` that recomputes eligibility from the order's epoch delivery date and denies refunds outside the 30-day window.",
+   "C": "Add few-shot examples showing epoch dates converted to ISO 8601 and numeric status codes read as text, so the model applies the window correctly.",
+   "D": "Route returns whose order data contains numeric status codes to `escalate_to_human` until the legacy backend can emit ISO 8601 dates."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite failed rule checks; kept the original",
+  "cost_usd": 3.5805
+ },
+ {
+  "id": "F0019",
+  "task": "2.3",
+  "domain": "2",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [
+   "S1-bank-20261028-1544"
+  ],
+  "writes": 2,
+  "stem": "Three weeks ago the platform team connected your support agent to two more internal MCP servers so it could check shipment status. The agent now loads 18 tools, and their definitions take about 9k tokens per request. Thirteen of the new tools are finance back-office operations that only the finance team runs, such as `adjust_invoice_line` and `apply_account_credit`. `check_shipment_status` is the only new tool that shows up in resolved support tickets. Since the change, wrong-tool calls in billing disputes have risen from 2% to 11%. Almost all of them are back-office calls where `process_refund` was the right tool. A staging trial put the 13 finance tools behind tool search with deferred loading. Prompt size dropped, but the agent's searches on refund and credit wording kept surfacing `apply_account_credit`, and wrong-tool calls only fell to 9%. All 18 descriptions were rewritten last sprint with input formats and when-not-to-use boundaries. Which change most effectively restores tool selection reliability?",
+  "options": {
+   "A": "Add billing-dispute example queries and explicit \"not for support refunds\" boundaries to each back-office tool description so the agent stops picking them.",
+   "B": "Set `defer_loading: true` on the 13 back-office tools behind tool search, keeping only the support tools and `check_shipment_status` loaded up front.",
+   "C": "Give the agent only the four support tools plus `check_shipment_status`, removing the finance back-office tools from its tool list.",
+   "D": "Add a pre-call hook that rejects any finance back-office tool call and returns an error telling the agent to use `process_refund` instead."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "D": 1
+   },
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "repair": "repaired: no second option defensible",
+  "hardening": "rewrite failed rule checks; kept the original",
+  "cost_usd": 1.8574
+ },
+ {
+  "id": "F0020",
+  "task": "1.4",
+  "domain": "1",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [
+   "S1-bank-20261028-1544"
+  ],
+  "writes": 2,
+  "stem": "Human specialists who take over escalated cases need 11 minutes on average before their first useful action, and 64% of them start by asking the customer to repeat account details and explain what has already been tried. The specialists' console shows only the arguments passed to `escalate_to_human`. Right now that tool accepts a single free-text `reason` string. Logs show reasons that range from one line to several paragraphs, and even the longest ones often leave out refund amounts and order numbers. Last quarter, a pilot linked the full conversation transcript to each ticket, but the repeat-question rate did not change. Specialists said 30-turn transcripts full of raw tool output were too slow to scan during a live handoff. Leadership wants the handoff fixed without lowering first-contact resolution. Which change would most effectively fix the handoff?",
+  "options": {
+   "A": "Redefine `escalate_to_human` to require structured fields: verified customer ID, affected order and amount, diagnosed cause, actions already taken, and the recommended next step.",
+   "B": "Restore the transcript link and add a model-generated table of contents so specialists can jump straight to the turns where account details, order numbers, and amounts appear.",
+   "C": "Add a system-prompt rule telling the agent to write a thorough free-text reason for each `escalate_to_human` call that names the customer, order, refund amount, and steps tried.",
+   "D": "Have the specialist console call `get_customer` and `lookup_order` automatically when a ticket opens, so each case starts with current account and order data on screen."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite failed rule checks; kept the original",
+  "cost_usd": 1.1992
+ },
+ {
+  "id": "F0022",
+  "task": "2.1",
+  "domain": "2",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [
+   "S1-bank-20261028-1544"
+  ],
+  "writes": 1,
+  "stem": "In 30 days of production logs, the agent picks `lookup_order` for 97% of order inquiries. However, 14% of `lookup_order` calls pass the customer's account ID rather than an order number. Almost all of these calls come after a successful `get_customer` call in the same conversation, and the value passed is the ID that call returned. Both tools take one string argument called `id`. The order backend matches `id` only against order numbers, and account IDs and order numbers are both 8-digit numbers. As a result, about a third of the bad calls quietly return another customer's order. The rest come back as \"no order found\", which the agent passes on to the customer, and support leads have flagged a rise in those complaints. Which change most effectively fixes this?",
+  "options": {
+   "A": "Add three or four few-shot examples to the system prompt showing the agent passing order numbers from the customer's message, not the customer ID, into `lookup_order`.",
+   "B": "Have `lookup_order` return a structured validation error with `errorCategory` and `isRetryable` when the `id` argument matches no order, so the agent can retry correctly.",
+   "C": "Split the `id` argument into distinct `order_number` and `customer_id` parameters, documenting in the tool definition which value each accepts and where it originates.",
+   "D": "Add a programmatic prerequisite that blocks `lookup_order` until `get_customer` has returned a verified customer ID earlier in the same conversation."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite failed rule checks; kept the original",
+  "cost_usd": 1.182
+ },
+ {
+  "id": "F0021",
+  "task": "1.2",
+  "domain": "1",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [
+   "S1-bank-20261028-1544"
+  ],
+  "writes": 2,
+  "stem": "To cut latency, your team rewired the orchestration so the billing-dispute subagent calls the refund subagent directly once it confirms a dispute, instead of first passing its conclusion back to the coordinator. Median handle time fell 18%. The billing-dispute subagent's prompt already tells it to relay any refund error to the coordinator word for word, and a prompt review found that instruction clear and prominent. Even so, audit logs from the past week show 31 tickets where the coordinator told the customer a refund had been issued, but the payment system has no record of it. In every one of those tickets, the refund subagent emitted a well-formed error (errorCategory \"business\", isRetryable false, with a customer-friendly explanation). That error reached the billing-dispute subagent, whose summary to the coordinator read \"dispute confirmed, refund step complete.\" Which change most effectively prevents these false confirmations while keeping the specialist subagents?",
+  "options": {
+   "A": "Reword the billing-dispute subagent's error-relay instruction more forcefully and add few-shot examples of summaries that quote refund errors in full.",
+   "B": "Add retries with exponential backoff inside the refund subagent so payment failures are recovered before any error reaches the billing-dispute subagent.",
+   "C": "Add a nightly reconciliation job that compares coordinator messages to the customer against payment records and reopens mismatched tickets.",
+   "D": "Have the billing-dispute subagent return its verdict to the coordinator, which invokes the refund subagent and reads its outcome before answering the customer."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "repair": "repaired: no second option defensible",
+  "hardening": "rewrite failed verification (second option defensible: C); kept the original",
+  "cost_usd": 2.4927
+ },
+ {
+  "id": "F0023",
+  "task": "5.1",
+  "domain": "5",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [
+   "S1-bank-20261028-1544"
+  ],
+  "writes": 1,
+  "stem": "When customers dispute charges on several orders, your agent calls `lookup_order` once per order. Each result returns about 45 fields, including warehouse codes, carrier scan events, SKU metadata, and payment-processor IDs. QA reviewed 300 multi-order sessions and found that the agent quoted a wrong purchase date or refund amount in 14% of them. Most errors involve orders looked up partway through the session. The first order discussed and the most recent one are almost always quoted correctly. At their largest, these sessions use about 38k tokens. A teammate says the sessions are too long and proposes summarizing older turns as history grows. Which change most effectively addresses these errors?",
+  "options": {
+   "A": "Reduce each `lookup_order` result to the few fields resolutions use, and keep each order's key facts in a headed case-facts block at the start of context.",
+   "B": "Enable compaction so older turns are summarized once history grows, which keeps the active context small and focused on the most recent exchanges.",
+   "C": "Add a system-prompt instruction requiring the agent to re-check every field of earlier `lookup_order` results before quoting an order's dates or amounts.",
+   "D": "Configure tool result clearing to remove older `lookup_order` results so only the three most recent tool results stay in the conversation history."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite failed rule checks; kept the original",
+  "cost_usd": 1.6976
+ },
+ {
+  "id": "F0024",
+  "task": "5.2",
+  "domain": "5",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 2,
+  "stem": "An audit of 400 transcripts that involved a handoff decision finds two patterns. In 31 of them, the customer asked to talk to a person, worded in many different ways (\"is anyone real there?\", \"get me your manager\", \"I'm done with the bot\"). The agent kept troubleshooting for three to five more turns before calling `escalate_to_human`, following a system-prompt line that says to attempt resolution first. In 58 others, the customer used angry language about a late-delivery refund that the policy covers but never asked for a person, and the agent handed off on the first turn without offering the refund. Handoff volume rose 20% after a recent edit added \"escalate when the customer seems upset.\" Which change most effectively corrects both patterns?",
+  "options": {
+   "A": "Add a pre-call hook that scans each message for terms like \"human,\" \"manager,\" or \"person\" and calls `escalate_to_human` before the model replies, keeping rules for covered refunds as is.",
+   "B": "Replace the \"seems upset\" line with a separate model that scores sentiment on each customer turn, and hand off only when anger stays above a tuned threshold for two turns.",
+   "C": "Have the agent rate its confidence in resolving each case from 1 to 10, escalate immediately below 6, and add few-shot examples of offer-versus-escalation calls.",
+   "D": "Rewrite the escalation rules: honor a request for a person immediately; for anger over a covered issue, offer the fix and hand off only if the customer still insists; add few-shot examples."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "hardening": "rewrite failed verification (second option defensible: C); kept the original",
+  "cost_usd": 1.0593
+ },
+ {
+  "id": "F0025",
+  "task": "2.2",
+  "domain": "2",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 1,
+  "stem": "During a 40-minute order-database failover last week, the `lookup_order` MCP server's timeout handler retried each call three times with exponential backoff (about 20 seconds in total). It then returned `{\"orders\": []}` with `isError: false`. The agent told 312 customers that no order matched their number and asked them to re-check it. 41% contacted support again the same day, and transcripts show frustration rising. On normal days, about 6% of lookups correctly return no match because the customer reads out a cart or quote number instead of an order number. The agent handles those cases well by asking for the email address on the order. The `lookup_order` description was rewritten last month, and tool-selection accuracy is now above 98%. Which change would most effectively prevent this from happening again?",
+  "options": {
+   "A": "Add a system-prompt rule telling the agent to retry `lookup_order` once on an empty result and then call `escalate_to_human` if the list is still empty.",
+   "B": "Have the server return `isError: true` on timeouts, with a transient `errorCategory`, `isRetryable: true`, and a note that the order system was unreachable.",
+   "C": "Raise the server's timeout retry limit from three to ten attempts with a longer backoff ceiling before it returns the empty order list.",
+   "D": "Add a `PostToolUse` hook that marks every empty `lookup_order` result as `isError: true` so the agent stops telling customers an order doesn't exist."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {},
+   "options_only": "4/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "repair": "repaired: no second option defensible",
+  "hardening": "rewrite was no less guessable (4/4); kept the original",
+  "cost_usd": 1.4085
+ },
+ {
+  "id": "F0026",
+  "task": "2.1",
+  "domain": "2",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 2,
+  "stem": "No one has edited the four tool descriptions in five months. The `escalate_to_human` description is two sentences long and does not mention billing. Eight days ago, compliance appended a section to the system prompt stating that disputes require human-verified account history. Compliance has since confirmed that the requirement covers only chargebacks filed with the card issuer. Since the change, the agent has called `escalate_to_human` on 27% of billing conversations, up from 4%, and first-contact resolution has dropped 9 points. Reviewers sampled 200 of those escalations. In 91% of them, the customer was asking whether a credit for a disputed charge had posted, which `lookup_order` answers, and the agent's text often cited verification before it escalated. Which change most effectively restores correct tool selection?",
+  "options": {
+   "A": "Expand the `escalate_to_human` tool description with billing boundaries stating that disputed-charge status questions belong to `lookup_order`.",
+   "B": "Add a pre-call hook that blocks `escalate_to_human` on dispute conversations unless a chargeback was filed with the card issuer.",
+   "C": "Reword the new system-prompt section so it is limited to issuer chargebacks and names the tool for other disputes.",
+   "D": "Add a few-shot section to the system prompt showing credit-status questions on disputed charges resolved through `lookup_order`."
+  },
+  "checks": {
+   "fail": [
+    "stem words appear only in the key: chargebacks, disputes"
+   ],
+   "warn": []
+  },
+  "status": "rejected",
+  "reason": "stem words appear only in the key: chargebacks, disputes",
+  "verify": null,
+  "difficulty_signal": null,
+  "cost_usd": 0.2867
+ },
+ {
+  "id": "F0027",
+  "task": "1.2",
+  "domain": "1",
+  "scenario": "S1",
+  "type": "single",
+  "difficulty_target": "hard",
+  "created": "2026-10-28",
+  "seen": [],
+  "writes": 2,
+  "stem": "Your support coordinator sends every ticket through four subagents (identity verification, order history, billing analysis, returns eligibility) and merges their outputs into one reply. A two-week trace review found that 58% of tickets are single-issue order-status questions, and every trace shows all four subagents invoked. On those order-status tickets, the billing analysis subagent labeled routine pending authorizations as a \"possible duplicate charge\" 9% of the time. The coordinator relayed these notes to customers, which generated new billing contacts. The billing team also reviewed the same subagent's output on tickets where customers disputed a charge and found it accurate. They want pending authorizations surfaced on those tickets, because real duplicates often show up first as pending authorizations. About one ticket in six combines an order question with a charge question. Median handling time is 41 seconds against a 90-second target. An engineer proposes running the three post-verification subagents concurrently, since each depends only on the verified customer ID. Verification must still precede any order or refund operation. Which change most effectively addresses the review's findings?",
+  "options": {
+   "A": "Issue the three post-verification subagent calls together in one coordinator turn so they run concurrently, since each needs only the verified customer ID.",
+   "B": "Add a PostToolUse hook that drops the billing subagent's findings before the merge whenever the ticket has been tagged as an order-status inquiry.",
+   "C": "Rewrite the billing subagent's prompt with explicit criteria so it flags a duplicate only when two settled charges match on amount, merchant, and date.",
+   "D": "Keep verification as the fixed first step, then have the coordinator decide per ticket which of the other specialists the customer's request needs."
+  },
+  "checks": {
+   "fail": [],
+   "warn": []
+  },
+  "status": "verified",
+  "reason": null,
+  "verify": {
+   "runs": 8,
+   "agree": 8,
+   "failed_calls": 0,
+   "other_picks": {},
+   "second_defensible": {
+    "A": 1
+   },
+   "options_only": "3/4",
+   "weak": "2/2"
+  },
+  "difficulty_signal": "easy",
+  "repair": "repaired: no second option defensible",
+  "hardening": "rewritten harder: options-only 4/4 → 3/4, signal now easy",
+  "cost_usd": 1.3316
+ }
+]
